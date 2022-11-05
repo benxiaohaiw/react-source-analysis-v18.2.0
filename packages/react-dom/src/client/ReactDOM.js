@@ -139,6 +139,7 @@ function renderSubtreeIntoContainer(
   );
 }
 
+// 创建FiberRootNode
 function createRoot(
   container: Element | Document | DocumentFragment,
   options?: CreateRootOptions,
@@ -151,6 +152,8 @@ function createRoot(
       );
     }
   }
+  // 执行ReactDOMRoot.js中的createRoot函数
+  // container为#root节点
   return createRootImpl(container, options);
 }
 

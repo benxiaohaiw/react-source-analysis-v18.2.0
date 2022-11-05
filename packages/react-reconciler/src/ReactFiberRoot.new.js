@@ -51,17 +51,17 @@ function FiberRootNode(
   identifierPrefix,
   onRecoverableError,
 ) {
-  this.tag = tag;
-  this.containerInfo = containerInfo;
+  this.tag = tag; // 1
+  this.containerInfo = containerInfo; // #root
   this.pendingChildren = null;
-  this.current = null;
+  this.current = null; // current
   this.pingCache = null;
   this.finishedWork = null;
   this.timeoutHandle = noTimeout;
   this.context = null;
   this.pendingContext = null;
   this.callbackNode = null;
-  this.callbackPriority = NoLane;
+  this.callbackPriority = NoLane; // 0
   this.eventTimes = createLaneMap(NoLanes);
   this.expirationTimes = createLaneMap(NoTimestamp);
 
@@ -128,6 +128,7 @@ function FiberRootNode(
   }
 }
 
+// 创建FiberRootNode以及FiberNode
 export function createFiberRoot(
   containerInfo: Container,
   tag: RootTag,
@@ -145,12 +146,12 @@ export function createFiberRoot(
   transitionCallbacks: null | TransitionTracingCallbacks,
 ): FiberRoot {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  const root: FiberRoot = (new FiberRootNode(
-    containerInfo,
-    tag,
-    hydrate,
-    identifierPrefix,
-    onRecoverableError,
+  const root: FiberRoot = (new FiberRootNode( // 创建FiberRootNode
+    containerInfo, // #root
+    tag, // ConcurrentRoot 1
+    hydrate, // false
+    identifierPrefix, // ''
+    onRecoverableError, // default
   ): any);
   if (enableSuspenseCallback) {
     root.hydrationCallbacks = hydrationCallbacks;
@@ -162,13 +163,14 @@ export function createFiberRoot(
 
   // Cyclic construction. This cheats the type system right now because
   // stateNode is any.
-  const uninitializedFiber = createHostRootFiber(
-    tag,
-    isStrictMode,
-    concurrentUpdatesByDefaultOverride,
+  const uninitializedFiber = createHostRootFiber( // 创建FiberNode
+    tag, // ConcurrentRoot 1
+    isStrictMode, // false
+    concurrentUpdatesByDefaultOverride, // false
   );
+  // 挂载到FiberRootNode的current属性上
   root.current = uninitializedFiber;
-  uninitializedFiber.stateNode = root;
+  uninitializedFiber.stateNode = root; // FiberNode的stateNode指向FiberRootNode
 
   if (enableCache) {
     const initialCache = createCache();
@@ -190,14 +192,17 @@ export function createFiberRoot(
     };
     uninitializedFiber.memoizedState = initialState;
   } else {
+    // 没有开启缓存
+    // 初始化状态
     const initialState: RootState = {
-      element: initialChildren,
-      isDehydrated: hydrate,
+      element: initialChildren, // null
+      isDehydrated: hydrate, // false
       cache: (null: any), // not enabled yet
     };
-    uninitializedFiber.memoizedState = initialState;
+    uninitializedFiber.memoizedState = initialState; // 存储在FiberNode的上一次状态上
   }
 
+  // 初始化FiberNode的updateQueue属性
   initializeUpdateQueue(uninitializedFiber);
 
   return root;

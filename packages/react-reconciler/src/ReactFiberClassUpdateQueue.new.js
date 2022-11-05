@@ -173,18 +173,20 @@ if (__DEV__) {
   };
 }
 
+// 初始化更新队列
 export function initializeUpdateQueue<State>(fiber: Fiber): void {
   const queue: UpdateQueue<State> = {
-    baseState: fiber.memoizedState,
+    baseState: fiber.memoizedState, // 把fiber的上一次状态属性值存入更新队列的基础状态属性上
     firstBaseUpdate: null,
     lastBaseUpdate: null,
-    shared: {
+    shared: { // 共享
       pending: null,
-      lanes: NoLanes,
+      lanes: NoLanes, // 0
       hiddenCallbacks: null,
     },
     callbacks: null,
   };
+  // 挂载到fiber的updateQueue属性上
   fiber.updateQueue = queue;
 }
 
@@ -221,6 +223,7 @@ export function createUpdate(eventTime: number, lane: Lane): Update<mixed> {
   return update;
 }
 
+// 入队更新
 export function enqueueUpdate<State>(
   fiber: Fiber,
   update: Update<State>,
@@ -249,6 +252,7 @@ export function enqueueUpdate<State>(
     }
   }
 
+  // false
   if (isUnsafeClassRenderPhaseUpdate(fiber)) {
     // This is an unsafe render phase update. Add directly to the update
     // queue so we can process it immediately during the current render.
@@ -268,7 +272,33 @@ export function enqueueUpdate<State>(
     // currently renderings (a pattern that is accompanied by a warning).
     return unsafe_markUpdateLaneFromFiberToRoot(fiber, lane);
   } else {
-    return enqueueConcurrentClassUpdate(fiber, sharedQueue, update, lane);
+    // 入队并发类更新
+    // FiberRootNode.current
+
+    // {
+    //   "pending": null,
+    //   "interleaved": null,
+    //   "lanes": 0
+    // }
+
+    // {
+    //   "eventTime": 1222454.0999999996,
+    //   "lane": 16,
+    //   "tag": 0,
+    //   "payload": {
+    //     "element": {
+    //       "$$typeof": Symbol(react.element),
+    //       "type": f App(),
+    //       "key": null,
+    //       "ref": null,
+    //       "props": {},
+    //     }
+    //   },
+    //   "callback": null,
+    //   "next": null
+    // }
+    return enqueueConcurrentClassUpdate(fiber, sharedQueue, update, lane); // 16
+    // 返回FiberRootNode
   }
 }
 

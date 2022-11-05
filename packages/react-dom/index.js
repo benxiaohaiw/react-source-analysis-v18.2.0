@@ -12,14 +12,15 @@
 export {default as __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED} from './src/ReactDOMSharedInternals';
 export {
   createPortal,
-  createRoot,
+  // 入口
+  createRoot, // 创建FiberRootNode和FiberNode // createRoot(dom).render(element)
   hydrateRoot,
   findDOMNode,
   flushSync,
   hydrate,
   render,
   unmountComponentAtNode,
-  unstable_batchedUpdates,
+  unstable_batchedUpdates, // 批量更新，原理也就是把executionContext更改为BatchedContext然后进而执行参数fn函数
   unstable_createEventHandle,
   unstable_flushControlled,
   unstable_isNewReconciler,

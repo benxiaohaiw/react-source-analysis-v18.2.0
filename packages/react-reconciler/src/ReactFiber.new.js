@@ -141,7 +141,7 @@ function FiberNode(
   this.stateNode = null;
 
   // Fiber
-  this.return = null;
+  this.return = null; // returnFiber
   this.child = null;
   this.sibling = null;
   this.index = 0;
@@ -154,15 +154,15 @@ function FiberNode(
   this.memoizedState = null;
   this.dependencies = null;
 
-  this.mode = mode;
+  this.mode = mode; // 模式
 
   // Effects
-  this.flags = NoFlags;
-  this.subtreeFlags = NoFlags;
+  this.flags = NoFlags; // 0
+  this.subtreeFlags = NoFlags; // 0
   this.deletions = null;
 
-  this.lanes = NoLanes;
-  this.childLanes = NoLanes;
+  this.lanes = NoLanes; // 0
+  this.childLanes = NoLanes; // 0
 
   this.alternate = null;
 
@@ -219,14 +219,14 @@ function FiberNode(
 //    is faster.
 // 5) It should be easy to port this to a C struct and keep a C implementation
 //    compatible.
-const createFiber = function(
+const createFiber = function( // 创建fiber节点
   tag: WorkTag,
   pendingProps: mixed,
   key: null | string,
   mode: TypeOfMode,
 ): Fiber {
   // $FlowFixMe: the shapes are exact here but Flow doesn't like constructors
-  return new FiberNode(tag, pendingProps, key, mode);
+  return new FiberNode(tag, pendingProps, key, mode); // 创建FiberNode
 };
 
 function shouldConstruct(Component: Function) {
@@ -257,16 +257,21 @@ export function resolveLazyComponentTag(Component: Function): WorkTag {
   return IndeterminateComponent;
 }
 
+// 这用于创建一个备用的fiber以进行工作
 // This is used to create an alternate fiber to do work on.
 export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
-  let workInProgress = current.alternate;
-  if (workInProgress === null) {
+
+  // 获取current.alternate属性
+  let workInProgress = current.alternate; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  
+  if (workInProgress === null) { // 是null的话直接根据current创建一个新的fiber
+
     // We use a double buffering pooling technique because we know that we'll
     // only ever need at most two versions of a tree. We pool the "other" unused
     // node that we're free to reuse. This is lazily created to avoid allocating
     // extra objects for things that are never updated. It also allow us to
     // reclaim the extra memory if needed.
-    workInProgress = createFiber(
+    workInProgress = createFiber( // 创建fiber
       current.tag,
       pendingProps,
       current.key,
@@ -284,9 +289,12 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
       workInProgress._debugHookTypes = current._debugHookTypes;
     }
 
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++===
+    // 相互指向通过各自的alternate属性
     workInProgress.alternate = current;
     current.alternate = workInProgress;
-  } else {
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  } else { // 不是null的话直接采用这个，但是这里更新一些属性
     workInProgress.pendingProps = pendingProps;
     // Needed because Blocks store data on type.
     workInProgress.type = current.type;
@@ -296,7 +304,7 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
     workInProgress.flags = NoFlags;
 
     // The effects are no longer valid.
-    workInProgress.subtreeFlags = NoFlags;
+    workInProgress.subtreeFlags = NoFlags; // 子树标记 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     workInProgress.deletions = null;
 
     if (enableProfilerTimer) {
@@ -308,6 +316,8 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
       workInProgress.actualStartTime = -1;
     }
   }
+
+  // 复用current的 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
 
   // Reset all effects except static ones.
   // Static effects are not specific to a render.
@@ -440,14 +450,15 @@ export function resetWorkInProgress(
   return workInProgress;
 }
 
+// 创建FiberNode
 export function createHostRootFiber(
   tag: RootTag,
   isStrictMode: boolean,
   concurrentUpdatesByDefaultOverride: null | boolean,
 ): Fiber {
   let mode;
-  if (tag === ConcurrentRoot) {
-    mode = ConcurrentMode;
+  if (tag === ConcurrentRoot) { // ConcurrentRoot 1
+    mode = ConcurrentMode; // 1
     if (isStrictMode === true || createRootStrictEffectsByDefault) {
       mode |= StrictLegacyMode | StrictEffectsMode;
     }
@@ -461,7 +472,7 @@ export function createHostRootFiber(
       mode |= ConcurrentUpdatesByDefaultMode;
     }
   } else {
-    mode = NoMode;
+    mode = NoMode; // 0
   }
 
   if (enableProfilerTimer && isDevToolsPresent) {
@@ -471,7 +482,8 @@ export function createHostRootFiber(
     mode |= ProfileMode;
   }
 
-  return createFiber(HostRoot, null, null, mode);
+  // 创建FiberNode
+  return createFiber(HostRoot, null, null, mode); // 3 null null 1
 }
 
 export function createFiberFromTypeAndProps(

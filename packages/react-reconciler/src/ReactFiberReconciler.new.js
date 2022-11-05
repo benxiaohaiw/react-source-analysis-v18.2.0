@@ -139,6 +139,7 @@ if (__DEV__) {
   didWarnAboutFindNodeInStrictMode = {};
 }
 
+// 为子树获取上下文
 function getContextForSubtree(
   parentComponent: ?React$Component<any, any>,
 ): Object {
@@ -258,16 +259,16 @@ export function createContainer(
   const hydrate = false;
   const initialChildren = null;
   return createFiberRoot(
-    containerInfo,
-    tag,
-    hydrate,
-    initialChildren,
-    hydrationCallbacks,
-    isStrictMode,
-    concurrentUpdatesByDefaultOverride,
-    identifierPrefix,
-    onRecoverableError,
-    transitionCallbacks,
+    containerInfo, // #root
+    tag, // ConcurrentRoot 1
+    hydrate, // false
+    initialChildren, // null
+    hydrationCallbacks, // null
+    isStrictMode, // false
+    concurrentUpdatesByDefaultOverride, // false
+    identifierPrefix, // ''
+    onRecoverableError, // default
+    transitionCallbacks, // null
   );
 }
 
@@ -319,6 +320,7 @@ export function createHydrationContainer(
   return root;
 }
 
+// 更新容器
 export function updateContainer(
   element: ReactNodeList,
   container: OpaqueRoot,
@@ -328,16 +330,21 @@ export function updateContainer(
   if (__DEV__) {
     onScheduleRoot(container, element);
   }
-  const current = container.current;
+  const current = container.current; // FiberNode
   const eventTime = requestEventTime();
-  const lane = requestUpdateLane(current);
+  // 请求更新优先级
+  // DefaultEventPriority 16
+  const lane = requestUpdateLane(current); // 16
 
   if (enableSchedulingProfiler) {
     markRenderScheduled(lane);
   }
 
+  // null
+  // // 为子树获取上下文，为null情况下则返回的是空上下文对象{}
   const context = getContextForSubtree(parentComponent);
   if (container.context === null) {
+    // 给FiberRootNode添加context属性
     container.context = context;
   } else {
     container.pendingContext = context;
@@ -360,10 +367,19 @@ export function updateContainer(
     }
   }
 
+  // 返回一个更新对象
+  // {
+  //   "eventTime": 1222454.0999999996,
+  //   "lane": 16,
+  //   "tag": 0,
+  //   "payload": null,
+  //   "callback": null,
+  //   "next": null
+  // }
   const update = createUpdate(eventTime, lane);
   // Caution: React DevTools currently depends on this property
   // being called "element".
-  update.payload = {element};
+  update.payload = {element}; // 把{$$typeof: Symbol(react.element), type: f App, props: {children?}}存入payload属性中
 
   callback = callback === undefined ? null : callback;
   if (callback !== null) {
@@ -379,13 +395,15 @@ export function updateContainer(
     update.callback = callback;
   }
 
-  const root = enqueueUpdate(current, update, lane);
+  // 入队更新
+  const root = enqueueUpdate(current, update, lane); //  // 返回FiberRootNode
   if (root !== null) {
+    // 在fiber上调度更新
     scheduleUpdateOnFiber(root, current, lane, eventTime);
     entangleTransitions(root, current, lane);
   }
 
-  return lane;
+  return lane; // 16
 }
 
 export {

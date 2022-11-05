@@ -3906,6 +3906,7 @@ function attemptEarlyBailoutIfNoScheduledUpdate(
   return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
 }
 
+// 开始工作
 function beginWork(
   current: Fiber | null,
   workInProgress: Fiber,

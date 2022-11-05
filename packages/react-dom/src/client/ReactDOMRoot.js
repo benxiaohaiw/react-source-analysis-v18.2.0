@@ -91,15 +91,16 @@ const defaultOnRecoverableError =
         console['error'](error);
       };
 
+// ReactDOMRoot类
 function ReactDOMRoot(internalRoot: FiberRoot) {
   this._internalRoot = internalRoot;
 }
 
 // $FlowFixMe[prop-missing] found when upgrading Flow
-ReactDOMHydrationRoot.prototype.render = ReactDOMRoot.prototype.render = function(
+ReactDOMHydrationRoot.prototype.render = ReactDOMRoot.prototype.render = function( // render函数
   children: ReactNodeList,
 ): void {
-  const root = this._internalRoot;
+  const root = this._internalRoot; // 取出FiberRootNode
   if (root === null) {
     throw new Error('Cannot update an unmounted root.');
   }
@@ -142,7 +143,9 @@ ReactDOMHydrationRoot.prototype.render = ReactDOMRoot.prototype.render = functio
       }
     }
   }
-  updateContainer(children, root, null, null);
+  // 更新容器
+  // 在react-reconciler/src/ReactFiberReconciler.js
+  updateContainer(children, root, null, null); // {$$typeof: Symbol(react.element), type: f App, props: {children?}} FiberRootNode
 };
 
 // $FlowFixMe[prop-missing] found when upgrading Flow
@@ -175,6 +178,7 @@ ReactDOMHydrationRoot.prototype.unmount = ReactDOMRoot.prototype.unmount = funct
   }
 };
 
+// 创建FiberRootNode
 export function createRoot(
   container: Element | Document | DocumentFragment,
   options?: CreateRootOptions,
@@ -191,6 +195,7 @@ export function createRoot(
   let onRecoverableError = defaultOnRecoverableError;
   let transitionCallbacks = null;
 
+  // 对options做整合
   if (options !== null && options !== undefined) {
     if (__DEV__) {
       if ((options: any).hydrate) {
@@ -233,16 +238,18 @@ export function createRoot(
     }
   }
 
+  // 创建FiberRootNode以及它的current属性FiberNode
   const root = createContainer(
-    container,
-    ConcurrentRoot,
+    container, // #root
+    ConcurrentRoot, // 1
     null,
-    isStrictMode,
+    isStrictMode, // 参数没有传入默认就是false
     concurrentUpdatesByDefaultOverride,
     identifierPrefix,
     onRecoverableError,
     transitionCallbacks,
   );
+  // 也就是给#root节点添加属性指向root.current这个FiberNode
   markContainerAsRoot(root.current, container);
 
   if (enableFloat) {
@@ -253,10 +260,14 @@ export function createRoot(
     container.nodeType === COMMENT_NODE
       ? (container.parentNode: any)
       : container;
-  listenToAllSupportedEvents(rootContainerElement);
+  
+  // react-dom-bindings/src/events/DOMPluginEventSystem.js
+  listenToAllSupportedEvents(rootContainerElement); // #root节点做事件委托，也就是在其身上监听所有支持的事件
 
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  return new ReactDOMRoot(root);
+  return new ReactDOMRoot(root); // 把FiberRootNode传入进去，存储它的实例的_internalRoot属性上
+  // 返回这个实例对象
+  // ReactDOMRoot原型上有一个render函数可供调用
 }
 
 function ReactDOMHydrationRoot(internalRoot: FiberRoot) {

@@ -91,6 +91,7 @@ export function getConcurrentlyUpdatedLanes(): Lanes {
   return concurrentlyUpdatedLanes;
 }
 
+// 入队更新
 function enqueueUpdate(
   fiber: Fiber,
   queue: ConcurrentQueue | null,
@@ -99,17 +100,23 @@ function enqueueUpdate(
 ) {
   // Don't update the `childLanes` on the return path yet. If we already in
   // the middle of rendering, wait until after it has completed.
+
+  // concurrentQueuesIndex: 0
+  // concurrentQueues是一个数组
+  // 存在这里面
   concurrentQueues[concurrentQueuesIndex++] = fiber;
   concurrentQueues[concurrentQueuesIndex++] = queue;
   concurrentQueues[concurrentQueuesIndex++] = update;
   concurrentQueues[concurrentQueuesIndex++] = lane;
 
-  concurrentlyUpdatedLanes = mergeLanes(concurrentlyUpdatedLanes, lane);
+  // 直接做一个或|运算
+  // 16
+  concurrentlyUpdatedLanes = mergeLanes(concurrentlyUpdatedLanes, lane); // 0 16
 
   // The fiber's `lane` field is used in some places to check if any work is
   // scheduled, to perform an eager bailout, so we need to update it immediately.
   // TODO: We should probably move this to the "shared" queue instead.
-  fiber.lanes = mergeLanes(fiber.lanes, lane);
+  fiber.lanes = mergeLanes(fiber.lanes, lane); // 16
   const alternate = fiber.alternate;
   if (alternate !== null) {
     alternate.lanes = mergeLanes(alternate.lanes, lane);
@@ -154,6 +161,7 @@ export function enqueueConcurrentHookUpdateAndEagerlyBailout<S, A>(
   }
 }
 
+// 入队并发类更新
 export function enqueueConcurrentClassUpdate<State>(
   fiber: Fiber,
   queue: ClassQueue<State>,
@@ -162,8 +170,33 @@ export function enqueueConcurrentClassUpdate<State>(
 ): FiberRoot | null {
   const concurrentQueue: ConcurrentQueue = (queue: any);
   const concurrentUpdate: ConcurrentUpdate = (update: any);
-  enqueueUpdate(fiber, concurrentQueue, concurrentUpdate, lane);
-  return getRootForUpdatedFiber(fiber);
+  // 入队更新
+  // FiberRootNode.current
+
+  // {
+  //   "pending": null,
+  //   "interleaved": null,
+  //   "lanes": 0
+  // }
+
+  // {
+  //   "eventTime": 1222454.0999999996,
+  //   "lane": 16,
+  //   "tag": 0,
+  //   "payload": {
+  //     "element": {
+  //       "$$typeof": Symbol(react.element),
+  //       "type": f App(),
+  //       "key": null,
+  //       "ref": null,
+  //       "props": {},
+  //     }
+  //   },
+  //   "callback": null,
+  //   "next": null
+  // }
+  enqueueUpdate(fiber, concurrentQueue, concurrentUpdate, lane); // 16
+  return getRootForUpdatedFiber(fiber); // 返回FiberRootNode
 }
 
 export function enqueueConcurrentRenderForLane(
@@ -273,6 +306,7 @@ function getRootForUpdatedFiber(sourceFiber: Fiber): FiberRoot | null {
     parent = node.return;
   }
   return node.tag === HostRoot ? (node.stateNode: FiberRoot) : null;
+  // 返回FiberRootNode
 }
 
 function detectUpdateOnUnmountedFiber(sourceFiber: Fiber, parent: Fiber) {

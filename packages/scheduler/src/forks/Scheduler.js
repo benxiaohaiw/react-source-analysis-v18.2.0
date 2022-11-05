@@ -121,52 +121,62 @@ const isInputPending =
 
 const continuousOptions = {includeContinuous: enableIsInputPendingContinuous};
 
+// 前进延时队列中的任务
 function advanceTimers(currentTime: number) {
+  // 检查不再延迟的任务并将它们添加到队列中。
   // Check for tasks that are no longer delayed and add them to the queue.
-  let timer = peek(timerQueue);
+  let timer = peek(timerQueue); // 延时任务队列
   while (timer !== null) {
     if (timer.callback === null) {
       // Timer was cancelled.
-      pop(timerQueue);
-    } else if (timer.startTime <= currentTime) {
+      pop(timerQueue); // 这个任务是被取消了
+    } else if (timer.startTime <= currentTime) { // 延时任务的开始时间 <= 当前时间
+      // 定时器触发。转移到任务队列。
       // Timer fired. Transfer to the task queue.
       pop(timerQueue);
-      timer.sortIndex = timer.expirationTime;
-      push(taskQueue, timer);
+      timer.sortIndex = timer.expirationTime; // 改变它的排序下标为过期时间
+      push(taskQueue, timer); // 推入到过期任务队列中
       if (enableProfiling) {
         markTaskStart(timer, currentTime);
         timer.isQueued = true;
       }
     } else {
+      // 延时任务的开始时间 > 当前时间
+      // 剩余的计时器待定。
       // Remaining timers are pending.
       return;
     }
-    timer = peek(timerQueue);
+    timer = peek(timerQueue); // 再次从延时任务队列中挑选延时任务
   }
 }
 
+// 处理超时
 function handleTimeout(currentTime: number) {
   isHostTimeoutScheduled = false;
+  // 因为在超时结束后可能会有其它的延时任务过期了（也就是要执行了），所以就需要执行这部操作把其移入过期任务队列中来
   advanceTimers(currentTime);
 
   if (!isHostCallbackScheduled) {
     if (peek(taskQueue) !== null) {
+      // 过期任务队列中有任务的
       isHostCallbackScheduled = true;
-      requestHostCallback(flushWork);
+      requestHostCallback(flushWork); // 再次刷新工作
     } else {
       const firstTimer = peek(timerQueue);
       if (firstTimer !== null) {
-        requestHostTimeout(handleTimeout, firstTimer.startTime - currentTime);
+        requestHostTimeout(handleTimeout, firstTimer.startTime - currentTime); // 再次请求主机超时
       }
     }
   }
 }
 
+// 刷新工作
 function flushWork(hasTimeRemaining: boolean, initialTime: number) {
   if (enableProfiling) {
     markSchedulerUnsuspended(initialTime);
   }
 
+  // 当前函数被执行了那就调整isHostCallbackScheduled为false
   // We'll need a host callback the next time work is scheduled.
   isHostCallbackScheduled = false;
   if (isHostTimeoutScheduled) {
@@ -175,8 +185,9 @@ function flushWork(hasTimeRemaining: boolean, initialTime: number) {
     cancelHostTimeout();
   }
 
+  // 是正在执行工作中
   isPerformingWork = true;
-  const previousPriorityLevel = currentPriorityLevel;
+  const previousPriorityLevel = currentPriorityLevel; // 当前优先级默认是NormalPriority
   try {
     if (enableProfiling) {
       try {
@@ -193,7 +204,7 @@ function flushWork(hasTimeRemaining: boolean, initialTime: number) {
       }
     } else {
       // No catch in prod code path.
-      return workLoop(hasTimeRemaining, initialTime);
+      return workLoop(hasTimeRemaining, initialTime); // 工作循环
     }
   } finally {
     currentTask = null;
@@ -207,19 +218,23 @@ function flushWork(hasTimeRemaining: boolean, initialTime: number) {
 }
 
 function workLoop(hasTimeRemaining: boolean, initialTime: number) {
-  let currentTime = initialTime;
+  let currentTime = initialTime; // 当前时间
+  // 还是看下延时任务队列中是否有任务过期了
   advanceTimers(currentTime);
-  currentTask = peek(taskQueue);
+  currentTask = peek(taskQueue); // 从过期任务队列taskQueue中挑选任务
   while (
     currentTask !== null &&
     !(enableSchedulerDebugging && isSchedulerPaused)
   ) {
     if (
+      // 过期任务的过期时间是否大于当前时间
+      // 我们知道正常优先级对应的cb的过期时间是向后延迟5s
       currentTask.expirationTime > currentTime &&
-      (!hasTimeRemaining || shouldYieldToHost())
+      (!hasTimeRemaining || shouldYieldToHost()/** 超了帧间隔那么应该yield */)
     ) {
+      // 这个 currentTask 还没有过期，我们已经到了最后期限。
       // This currentTask hasn't expired, and we've reached the deadline.
-      break;
+      break; // 退出
     }
     // $FlowFixMe[incompatible-use] found when upgrading Flow
     const callback = currentTask.callback;
@@ -229,46 +244,58 @@ function workLoop(hasTimeRemaining: boolean, initialTime: number) {
       // $FlowFixMe[incompatible-use] found when upgrading Flow
       currentPriorityLevel = currentTask.priorityLevel;
       // $FlowFixMe[incompatible-use] found when upgrading Flow
-      const didUserCallbackTimeout = currentTask.expirationTime <= currentTime;
+      // 用户回调是否已超时
+      const didUserCallbackTimeout = currentTask.expirationTime <= currentTime; // 过期时间是否小于等于当前时间
       if (enableProfiling) {
         // $FlowFixMe[incompatible-call] found when upgrading Flow
         markTaskRun(currentTask, currentTime);
       }
-      const continuationCallback = callback(didUserCallbackTimeout);
-      currentTime = getCurrentTime();
+      // 继续回调
+      // 用户回调是否已超时传入cb中
+      const continuationCallback = callback(didUserCallbackTimeout); // 执行callback
+      currentTime = getCurrentTime(); // 执行了cb后再次获取当前时间
+      // 返回函数说明cb执行期间任务中断了
       if (typeof continuationCallback === 'function') {
         // If a continuation is returned, immediately yield to the main thread
         // regardless of how much time is left in the current time slice.
         // $FlowFixMe[incompatible-use] found when upgrading Flow
-        currentTask.callback = continuationCallback;
+        currentTask.callback = continuationCallback; // 再次赋值
         if (enableProfiling) {
           // $FlowFixMe[incompatible-call] found when upgrading Flow
           markTaskYield(currentTask, currentTime);
         }
+        // 再去看下延时任务队列
         advanceTimers(currentTime);
-        return true;
+        return true; // 返回true表示还有任务
       } else {
+        // 返回其它表示cb执行完毕
         if (enableProfiling) {
           // $FlowFixMe[incompatible-call] found when upgrading Flow
           markTaskCompleted(currentTask, currentTime);
           // $FlowFixMe[incompatible-use] found when upgrading Flow
           currentTask.isQueued = false;
         }
+
+        // peek只是挑选任务 - 任务并没有移除
         if (currentTask === peek(taskQueue)) {
-          pop(taskQueue);
+          pop(taskQueue); // 移除此任务
         }
+        // 再去看下延时任务队列 - 移入过期任务队列中来
         advanceTimers(currentTime);
       }
     } else {
+      // 不是函数直接弹出
       pop(taskQueue);
     }
+    // 再次向过期任务队列中挑选任务
     currentTask = peek(taskQueue);
   }
+  // 返回是否有额外的工作
   // Return whether there's additional work
   if (currentTask !== null) {
-    return true;
+    return true; // 有
   } else {
-    const firstTimer = peek(timerQueue);
+    const firstTimer = peek(timerQueue); // 延时任务队列有任务
     if (firstTimer !== null) {
       requestHostTimeout(handleTimeout, firstTimer.startTime - currentTime);
     }
@@ -342,12 +369,13 @@ function unstable_wrapCallback<T: (...Array<mixed>) => mixed>(callback: T): T {
   };
 }
 
+// 调度回调
 function unstable_scheduleCallback(
-  priorityLevel: PriorityLevel,
-  callback: Callback,
+  priorityLevel: PriorityLevel, // 优先级
+  callback: Callback, // 回调
   options?: {delay: number},
 ): Task {
-  var currentTime = getCurrentTime();
+  var currentTime = getCurrentTime(); // Date.now()
 
   var startTime;
   if (typeof options === 'object' && options !== null) {
@@ -358,7 +386,7 @@ function unstable_scheduleCallback(
       startTime = currentTime;
     }
   } else {
-    startTime = currentTime;
+    startTime = currentTime; // 赋值
   }
 
   var timeout;
@@ -375,56 +403,73 @@ function unstable_scheduleCallback(
     case LowPriority:
       timeout = LOW_PRIORITY_TIMEOUT;
       break;
-    case NormalPriority:
+    case NormalPriority: // 3
     default:
-      timeout = NORMAL_PRIORITY_TIMEOUT;
+      timeout = NORMAL_PRIORITY_TIMEOUT; // 5000
       break;
   }
 
+  // 开始事件加上超时等于它的过期事件
+  // 也就是NormalPriority对应的回调过期时间是5s之后
   var expirationTime = startTime + timeout;
 
+  // 创建一个新的任务
   var newTask: Task = {
-    id: taskIdCounter++,
-    callback,
-    priorityLevel,
+    id: taskIdCounter++, // 1进行++
+    callback, // 回调
+    priorityLevel, // 优先级
     startTime,
-    expirationTime,
+    expirationTime, // 过期时间
     sortIndex: -1,
   };
   if (enableProfiling) {
     newTask.isQueued = false;
   }
 
+  // 开始时间大于当前时间 - 说明此任务是延时任务
   if (startTime > currentTime) {
     // This is a delayed task.
-    newTask.sortIndex = startTime;
-    push(timerQueue, newTask);
+    newTask.sortIndex = startTime; // 排序下标为开始时间
+    push(timerQueue, newTask); // 推入到延时任务队列中
+    // 过期任务队列中没有且延时任务队列中挑选的任务就是这个任务
     if (peek(taskQueue) === null && newTask === peek(timerQueue)) {
+      // 所有任务都有延迟，这是延迟最早的任务。
       // All tasks are delayed, and this is the task with the earliest delay.
       if (isHostTimeoutScheduled) {
+        // 取消现有的超时。
         // Cancel an existing timeout.
         cancelHostTimeout();
       } else {
         isHostTimeoutScheduled = true;
       }
+      // 安排超时。
       // Schedule a timeout.
-      requestHostTimeout(handleTimeout, startTime - currentTime);
+      requestHostTimeout(handleTimeout, startTime - currentTime); // 延时任务的间隔为开始时间 - 当前时间
     }
   } else {
+    // 开始时间小于等于当前时间表示当前新任务已经是过期的了，需要推入到taskQueue中
+    // 它代表过期任务的队列
+    // 任务的排序下标变为过期时间
     newTask.sortIndex = expirationTime;
-    push(taskQueue, newTask);
+    push(taskQueue, newTask); // 推入到taskQueue中
     if (enableProfiling) {
       markTaskStart(newTask, currentTime);
       newTask.isQueued = true;
     }
     // Schedule a host callback, if needed. If we're already performing work,
     // wait until the next time we yield.
+
+    // 全局变量
+    // isHostCallbackScheduled: false
+    // isPerformingWork: false
     if (!isHostCallbackScheduled && !isPerformingWork) {
-      isHostCallbackScheduled = true;
+      isHostCallbackScheduled = true; // 调为true
+      // 请求主机回调
       requestHostCallback(flushWork);
     }
   }
 
+  // 返回任务
   return newTask;
 }
 
@@ -483,8 +528,10 @@ let startTime = -1;
 
 let needsPaint = false;
 
+// 应该yield
 function shouldYieldToHost(): boolean {
   const timeElapsed = getCurrentTime() - startTime;
+  // 当前时间 - 开始时间 < 帧间隔 - 表示还有时间可以继续执行 - 那么不应该yield则返回false
   if (timeElapsed < frameInterval) {
     // The main thread has only been blocked for a really short amount of time;
     // smaller than a single frame. Don't yield yet.
@@ -524,6 +571,7 @@ function shouldYieldToHost(): boolean {
     }
   }
 
+  // 返回true表示应该yield
   // `isInputPending` isn't available. Yield now.
   return true;
 }
@@ -560,13 +608,16 @@ function forceFrameRate(fps: number) {
   }
 }
 
+// 执行工作直到最后期限
 const performWorkUntilDeadline = () => {
   if (scheduledHostCallback !== null) {
+    // 当前函数是作为一个宏任务被执行的，所以需要再次获取当前的时间
+    // 再次获取当前时间 - Date.now()
     const currentTime = getCurrentTime();
     // Keep track of the start time so we can measure how long the main thread
     // has been blocked.
-    startTime = currentTime;
-    const hasTimeRemaining = true;
+    startTime = currentTime; // 赋值给开始时间
+    const hasTimeRemaining = true; // 默认是有时间剩余的
 
     // If a scheduler task throws, exit the current browser task so the
     // error can be observed.
@@ -574,16 +625,19 @@ const performWorkUntilDeadline = () => {
     // Intentionally not using a try-catch, since that makes some debugging
     // techniques harder. Instead, if `scheduledHostCallback` errors, then
     // `hasMoreWork` will remain true, and we'll continue the work loop.
-    let hasMoreWork = true;
+    let hasMoreWork = true; // 默认是有许多工作的
     try {
       // $FlowFixMe[not-a-function] found when upgrading Flow
-      hasMoreWork = scheduledHostCallback(hasTimeRemaining, currentTime);
+      hasMoreWork = scheduledHostCallback(hasTimeRemaining, currentTime); // 直接执行flushWork
     } finally {
+      // flushWork执行完后返回true表示还有更多的任务
       if (hasMoreWork) {
+        // 如果有更多的工作，将下一个消息事件安排在前一个消息事件的末尾。
         // If there's more work, schedule the next message event at the end
         // of the preceding one.
         schedulePerformWorkUntilDeadline();
       } else {
+        // 重置状态
         isMessageLoopRunning = false;
         scheduledHostCallback = null;
       }
@@ -617,9 +671,10 @@ if (typeof localSetImmediate === 'function') {
   // We prefer MessageChannel because of the 4ms setTimeout clamping.
   const channel = new MessageChannel();
   const port = channel.port2;
-  channel.port1.onmessage = performWorkUntilDeadline;
+  channel.port1.onmessage = performWorkUntilDeadline; // 宏任务
+  // 执行这个函数
   schedulePerformWorkUntilDeadline = () => {
-    port.postMessage(null);
+    port.postMessage(null); // 宏任务
   };
 } else {
   // We should only fallback here in non-browser environments.
@@ -629,24 +684,30 @@ if (typeof localSetImmediate === 'function') {
   };
 }
 
-function requestHostCallback(callback) {
-  scheduledHostCallback = callback;
+// 请求主机回调
+function requestHostCallback(callback) { // cb: flushWork
+  // 全局变量默认为null
+  scheduledHostCallback = callback; // 调度主机回调赋值为flushWork
+  // // 全局变量默认为false，也就是消息循环不在运行中
   if (!isMessageLoopRunning) {
-    isMessageLoopRunning = true;
+    isMessageLoopRunning = true; // 改为运行中
+    // 调度执行工作直到最后期限
     schedulePerformWorkUntilDeadline();
   }
 }
 
+// 请求主机超时
 function requestHostTimeout(callback, ms: number) {
   // $FlowFixMe[not-a-function] nullable value
-  taskTimeoutID = localSetTimeout(() => {
+  taskTimeoutID = localSetTimeout(() => { // 直接一个setTimeout
     callback(getCurrentTime());
   }, ms);
 }
 
+// 取消主机超时
 function cancelHostTimeout() {
   // $FlowFixMe[not-a-function] nullable value
-  localClearTimeout(taskTimeoutID);
+  localClearTimeout(taskTimeoutID); // 清除定时器
   taskTimeoutID = ((-1: any): TimeoutID);
 }
 
@@ -658,7 +719,7 @@ export {
   LowPriority as unstable_LowPriority,
   unstable_runWithPriority,
   unstable_next,
-  unstable_scheduleCallback,
+  unstable_scheduleCallback, // 调度回调
   unstable_cancelCallback,
   unstable_wrapCallback,
   unstable_getCurrentPriorityLevel,
