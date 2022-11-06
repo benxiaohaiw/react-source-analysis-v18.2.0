@@ -1824,6 +1824,7 @@ function getHostSibling(fiber: Fiber): ?Instance {
   }
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function commitPlacement(finishedWork: Fiber): void {
   if (!supportsMutation) {
     return;
@@ -1838,7 +1839,7 @@ function commitPlacement(finishedWork: Fiber): void {
     }
   }
   // Recursively insert all host nodes into the parent.
-  const parentFiber = getHostParentFiber(finishedWork);
+  const parentFiber = getHostParentFiber(finishedWork); // workInprogress
 
   switch (parentFiber.tag) {
     case HostSingleton: {
@@ -1869,9 +1870,11 @@ function commitPlacement(finishedWork: Fiber): void {
     }
     case HostRoot:
     case HostPortal: {
-      const parent: Container = parentFiber.stateNode.containerInfo;
+      // #root
+      const parent: Container = parentFiber.stateNode.containerInfo; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // null
       const before = getHostSibling(finishedWork);
-      insertOrAppendPlacementNodeIntoContainer(finishedWork, before, parent);
+      insertOrAppendPlacementNodeIntoContainer(finishedWork, before, parent); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       break;
     }
     // eslint-disable-next-line-no-fallthrough
@@ -1883,19 +1886,21 @@ function commitPlacement(finishedWork: Fiber): void {
   }
 }
 
-function insertOrAppendPlacementNodeIntoContainer(
+function insertOrAppendPlacementNodeIntoContainer( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   node: Fiber,
   before: ?Instance,
   parent: Container,
 ): void {
   const {tag} = node;
-  const isHost = tag === HostComponent || tag === HostText;
+  const isHost = tag === HostComponent || tag === HostText; // +++++++++++++++++++++++++++++ button fiber is host
   if (isHost) {
-    const stateNode = node.stateNode;
-    if (before) {
-      insertInContainerBefore(parent, stateNode, before);
+    const stateNode = node.stateNode; // button dom
+    // parent: #root
+
+    if (before) { // null
+      insertInContainerBefore(parent, stateNode, before); // +++++++++++++++++++++++++++++++++++++++++++++++
     } else {
-      appendChildToContainer(parent, stateNode);
+      appendChildToContainer(parent, stateNode); // +++++++++++++++++++++++++++++++++++ // #root, button dom -> appendChild
     }
   } else if (
     tag === HostPortal ||
@@ -1906,9 +1911,9 @@ function insertOrAppendPlacementNodeIntoContainer(
     // the portal directly.
     // If the insertion is a HostSingleton then it will be placed independently
   } else {
-    const child = node.child;
+    const child = node.child; // App fiber, button fiber
     if (child !== null) {
-      insertOrAppendPlacementNodeIntoContainer(child, before, parent);
+      insertOrAppendPlacementNodeIntoContainer(child, before, parent); // ++++++++++++++++++++++++++
       let sibling = child.sibling;
       while (sibling !== null) {
         insertOrAppendPlacementNodeIntoContainer(sibling, before, parent);
@@ -2485,6 +2490,7 @@ export function isSuspenseBoundaryBeingHidden(
   return false;
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function commitMutationEffects(
   root: FiberRoot,
   finishedWork: Fiber,
@@ -2494,6 +2500,7 @@ export function commitMutationEffects(
   inProgressRoot = root;
 
   setCurrentDebugFiberInDEV(finishedWork);
+  // 在fiber上进行 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   commitMutationEffectsOnFiber(finishedWork, root, committedLanes);
   setCurrentDebugFiberInDEV(finishedWork);
 
@@ -2501,6 +2508,7 @@ export function commitMutationEffects(
   inProgressRoot = null;
 }
 
+// 递归迭代 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function recursivelyTraverseMutationEffects(
   root: FiberRoot,
   parentFiber: Fiber,
@@ -2508,7 +2516,7 @@ function recursivelyTraverseMutationEffects(
 ) {
   // Deletions effects can be scheduled on any fiber type. They need to happen
   // before the children effects hae fired.
-  const deletions = parentFiber.deletions;
+  const deletions = parentFiber.deletions; // 是否有需要删除的
   if (deletions !== null) {
     for (let i = 0; i < deletions.length; i++) {
       const childToDelete = deletions[i];
@@ -2521,35 +2529,71 @@ function recursivelyTraverseMutationEffects(
   }
 
   const prevDebugFiber = getCurrentDebugFiberInDEV();
-  if (parentFiber.subtreeFlags & MutationMask) {
+
+  /* 
+  packages/react-reconciler/src/ReactFiberBeginWork.new.js
+    mountIndeterminateComponent -> reconcileChildFibers -> reconcileSingleElement -> placeSingleChild（newFiber.flags |= Placement | PlacementDEV;）
+    
+    下面是没有placeSingleChild，那么也就没有newFiber.flags |= Placement | PlacementDEV;这一步
+    updateHostComponent -> reconcileChildFibers -> reconcileChildrenArray
+    updateHostText -> no
+  */
+
+
+  /* 
+  packages/react-reconciler/src/ReactFiberFlags.js
+  export const MutationMask = // 12854
+    Placement | // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+    Update |
+    ChildDeletion |
+    ContentReset |
+    Ref |
+    Hydrating |
+    Visibility;
+  */
+
+
+    // 在packages/react-reconciler/src/ReactChildFiber.new.js里面的reconcileChildFibers -> placeSingleChild（newFiber.flags |= Placement | PlacementDEV;）
+  // 注意它是App fiber的flags
+  // 在packages/react-reconciler/src/ReactFiberWorkLoop.new.js下的performUnitOfWork -> completeUnitOfWork -> completeWork -> 
+  // 在packages/react-reconciler/src/ReactFiberCompleteWork.new.js下的completeWork -> case HostRoot: -> bubbleProperties它会让
+  // 当前的FiberRootNode.current.alternate的subtreeFlags |= child.flags;
+
+  if (parentFiber.subtreeFlags & MutationMask) { // 它的subtreeFlags是否有MutationMask标记
     let child = parentFiber.child;
     while (child !== null) {
       setCurrentDebugFiberInDEV(child);
-      commitMutationEffectsOnFiber(child, root, lanes);
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      commitMutationEffectsOnFiber(child, root, lanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++
       child = child.sibling;
     }
   }
   setCurrentDebugFiberInDEV(prevDebugFiber);
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function commitMutationEffectsOnFiber(
   finishedWork: Fiber,
   root: FiberRoot,
   lanes: Lanes,
 ) {
-  const current = finishedWork.alternate;
+  const current = finishedWork.alternate; // 取出alternate属性也就是current // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   const flags = finishedWork.flags;
 
   // The effect flag should be checked *after* we refine the type of fiber,
   // because the fiber tag is more specific. An exception is any flag related
   // to reconciliation, because those can be set on all fiber types.
-  switch (finishedWork.tag) {
-    case FunctionComponent:
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  switch (finishedWork.tag) { // 依据标签tag
+    case FunctionComponent: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ForwardRef:
     case MemoComponent:
     case SimpleMemoComponent: {
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
-      commitReconciliationEffects(finishedWork);
+
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // App fiber: commitReconciliationEffects -> commitPlacement
+      commitReconciliationEffects(finishedWork); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
       if (flags & Update) {
         try {
@@ -2594,7 +2638,7 @@ function commitMutationEffectsOnFiber(
           }
         }
       }
-      return;
+      return; // return 返回
     }
     case ClassComponent: {
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
@@ -2754,9 +2798,13 @@ function commitMutationEffectsOnFiber(
       return;
     }
     case HostRoot: {
-      recursivelyTraverseMutationEffects(root, finishedWork, lanes);
+      // 开始递归迭代 - 进去 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      recursivelyTraverseMutationEffects(root, finishedWork, lanes); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       commitReconciliationEffects(finishedWork);
 
+      // 是否有更新 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       if (flags & Update) {
         if (supportsMutation && supportsHydration) {
           if (current !== null) {
@@ -2784,7 +2832,7 @@ function commitMutationEffectsOnFiber(
           }
         }
       }
-      return;
+      return; // 返回return
     }
     case HostPortal: {
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
@@ -2955,14 +3003,53 @@ function commitMutationEffectsOnFiber(
     }
   }
 }
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function commitReconciliationEffects(finishedWork: Fiber) {
   // Placement effects (insertions, reorders) can be scheduled on any fiber
   // type. They needs to happen after the children effects have fired, but
   // before the effects on this fiber have fired.
-  const flags = finishedWork.flags;
-  if (flags & Placement) {
+  const flags = finishedWork.flags; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 在packages/react-reconciler/src/ReactChildFiber.new.js里面的reconcileChildFibers -> placeSingleChild（newFiber.flags |= Placement | PlacementDEV;）
+  // 注意它是App fiber的flags
+  // 在packages/react-reconciler/src/ReactFiberWorkLoop.new.js下的performUnitOfWork -> completeUnitOfWork -> completeWork -> 
+  // 在packages/react-reconciler/src/ReactFiberCompleteWork.new.js下的completeWork -> case HostRoot: -> bubbleProperties它会让
+  // 当前的FiberRootNode.current.alternate的subtreeFlags |= child.flags;
+  
+    /* 
+  packages/react-reconciler/src/ReactFiberBeginWork.new.js
+    mountIndeterminateComponent -> reconcileChildFibers -> reconcileSingleElement -> placeSingleChild（newFiber.flags |= Placement | PlacementDEV;）
+    
+    下面是没有placeSingleChild，那么也就没有newFiber.flags |= Placement | PlacementDEV;这一步
+    updateHostComponent -> reconcileChildFibers -> reconcileChildrenArray
+    updateHostText -> no
+  */
+
+
+  /* 
+  packages/react-reconciler/src/ReactFiberFlags.js
+  export const MutationMask = // 12854
+    Placement | // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+    Update |
+    ChildDeletion |
+    ContentReset |
+    Ref |
+    Hydrating |
+    Visibility;
+  */
+
+  // packages/react-reconciler/src/ReactFiberCompleteWork.new.js
+  // completeWork -> case HostRoot:
+  //   相当于FiberRootNode.current.alternate.flags |= Snapshot; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  //   workInProgress.flags |= Snapshot; // 1024 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 所以说WorkInProgress的flags就是1024 Snapshot
+  // 而Placement为2
+  // 肯定是不行的
+
+
+  if (flags & Placement) { // flags是否具有Placement标记+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     try {
-      commitPlacement(finishedWork);
+      commitPlacement(finishedWork); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     } catch (error) {
       captureCommitPhaseError(finishedWork, finishedWork.return, error);
     }
@@ -2970,7 +3057,7 @@ function commitReconciliationEffects(finishedWork: Fiber) {
     // inserted, before any life-cycles like componentDidMount gets called.
     // TODO: findDOMNode doesn't rely on this any more but isMounted does
     // and isMounted is deprecated anyway so we should be able to kill this.
-    finishedWork.flags &= ~Placement;
+    finishedWork.flags &= ~Placement; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
   if (flags & Hydrating) {
     finishedWork.flags &= ~Hydrating;

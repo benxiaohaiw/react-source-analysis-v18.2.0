@@ -273,7 +273,7 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
     // reclaim the extra memory if needed.
     workInProgress = createFiber( // 创建fiber
       current.tag,
-      pendingProps,
+      pendingProps, // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       current.key,
       current.mode,
     );
@@ -295,7 +295,7 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
     current.alternate = workInProgress;
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   } else { // 不是null的话直接采用这个，但是这里更新一些属性
-    workInProgress.pendingProps = pendingProps;
+    workInProgress.pendingProps = pendingProps; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Needed because Blocks store data on type.
     workInProgress.type = current.type;
 
@@ -483,9 +483,10 @@ export function createHostRootFiber(
   }
 
   // 创建FiberNode
-  return createFiber(HostRoot, null, null, mode); // 3 null null 1
+  return createFiber(HostRoot, null, null, mode); // 3 null null 1 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
+// 从类型和props上创建fiber
 export function createFiberFromTypeAndProps(
   type: any, // React$ElementType
   key: null | string,
@@ -494,9 +495,9 @@ export function createFiberFromTypeAndProps(
   mode: TypeOfMode,
   lanes: Lanes,
 ): Fiber {
-  let fiberTag = IndeterminateComponent;
+  let fiberTag = IndeterminateComponent; // 不确定的组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // The resolved type is set if we know what the final type will be. I.e. it's not lazy.
-  let resolvedType = type;
+  let resolvedType = type; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (typeof type === 'function') {
     if (shouldConstruct(type)) {
       fiberTag = ClassComponent;
@@ -629,8 +630,8 @@ export function createFiberFromTypeAndProps(
     }
   }
 
-  const fiber = createFiber(fiberTag, pendingProps, key, mode);
-  fiber.elementType = type;
+  const fiber = createFiber(fiberTag, pendingProps, key, mode); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  fiber.elementType = type; // 元素类型
   fiber.type = resolvedType;
   fiber.lanes = lanes;
 
@@ -638,9 +639,10 @@ export function createFiberFromTypeAndProps(
     fiber._debugOwner = owner;
   }
 
-  return fiber;
+  return fiber; // 返回fiber
 }
 
+// 从元素创建fiber
 export function createFiberFromElement(
   element: ReactElement,
   mode: TypeOfMode,
@@ -653,7 +655,7 @@ export function createFiberFromElement(
   const type = element.type;
   const key = element.key;
   const pendingProps = element.props;
-  const fiber = createFiberFromTypeAndProps(
+  const fiber = createFiberFromTypeAndProps( // 从类型和props上创建fiber
     type,
     key,
     pendingProps,

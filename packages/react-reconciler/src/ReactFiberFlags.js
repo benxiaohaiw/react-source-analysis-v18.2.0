@@ -16,7 +16,7 @@ export const NoFlags = /*                      */ 0b00000000000000000000000000; 
 export const PerformedWork = /*                */ 0b00000000000000000000000001; // 1
 
 // You can change the rest (and add more).
-export const Placement = /*                    */ 0b00000000000000000000000010; // 2
+export const Placement = /*                    */ 0b00000000000000000000000010; // 2 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export const Update = /*                       */ 0b00000000000000000000000100; // 4
 export const ChildDeletion = /*                */ 0b00000000000000000000001000;
 export const ContentReset = /*                 */ 0b00000000000000000000010000;
@@ -24,8 +24,8 @@ export const Callback = /*                     */ 0b00000000000000000000100000;
 export const DidCapture = /*                   */ 0b00000000000000000001000000;
 export const ForceClientRender = /*            */ 0b00000000000000000010000000;
 export const Ref = /*                          */ 0b00000000000000000100000000;
-export const Snapshot = /*                     */ 0b00000000000000001000000000;
-export const Passive = /*                      */ 0b00000000000000010000000000; // 1024
+export const Snapshot = /*                     */ 0b00000000000000001000000000; // 1024 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+export const Passive = /*                      */ 0b00000000000000010000000000; // 2048 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export const Hydrating = /*                    */ 0b00000000000000100000000000;
 export const Visibility = /*                   */ 0b00000000000001000000000000;
 export const StoreConsistency = /*             */ 0b00000000000010000000000000;
@@ -51,12 +51,12 @@ export const Forked = /*                       */ 0b00000010000000000000000000;
 // and instead rely on the static flag as a signal that there may be cleanup work.
 export const RefStatic = /*                    */ 0b00000100000000000000000000;
 export const LayoutStatic = /*                 */ 0b00001000000000000000000000;
-export const PassiveStatic = /*                */ 0b00010000000000000000000000;
+export const PassiveStatic = /*                */ 0b00010000000000000000000000; // 8388608 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 // Flag used to identify newly inserted fibers. It isn't reset after commit unlike `Placement`.
 export const PlacementDEV = /*                 */ 0b00100000000000000000000000;
-export const MountLayoutDev = /*               */ 0b01000000000000000000000000;
-export const MountPassiveDev = /*              */ 0b10000000000000000000000000;
+export const MountLayoutDev = /*               */ 0b01000000000000000000000000; // 16777216
+export const MountPassiveDev = /*              */ 0b10000000000000000000000000; // 33554432 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 // Groups of flags that are used in the commit phase to skip over trees that
 // don't contain effects, by checking subtreeFlags.
@@ -74,20 +74,21 @@ export const BeforeMutationMask =
       ChildDeletion | Visibility
     : 0);
 
-export const MutationMask =
-  Placement |
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+export const MutationMask = // 12854
+  Placement | // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
   Update |
   ChildDeletion |
   ContentReset |
   Ref |
   Hydrating |
   Visibility;
-export const LayoutMask = Update | Callback | Ref | Visibility;
+export const LayoutMask = Update | Callback | Ref | Visibility; // 8772
 
 // TODO: Split into PassiveMountMask and PassiveUnmountMask
-export const PassiveMask = Passive | Visibility | ChildDeletion;
+export const PassiveMask = Passive | Visibility | ChildDeletion; // 2064
 
 // Union of tags that don't get reset on clones.
 // This allows certain concepts to persist without recalculating them,
 // e.g. whether a subtree contains passive effects or portals.
-export const StaticMask = LayoutStatic | PassiveStatic | RefStatic;
+export const StaticMask = LayoutStatic | PassiveStatic | RefStatic; // 14680064

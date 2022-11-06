@@ -167,7 +167,7 @@ export function createFiberRoot(
     tag, // ConcurrentRoot 1
     isStrictMode, // false
     concurrentUpdatesByDefaultOverride, // false
-  );
+  ); // 产生的这个FiberNode的tag为HostRoot // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // 挂载到FiberRootNode的current属性上
   root.current = uninitializedFiber;
   uninitializedFiber.stateNode = root; // FiberNode的stateNode指向FiberRootNode

@@ -175,10 +175,11 @@ import {
   popRootMarkerInstance,
 } from './ReactFiberTracingMarkerComponent.new';
 
+// 标记更新
 function markUpdate(workInProgress: Fiber) {
   // Tag the fiber with an update effect. This turns a Placement into
   // a PlacementAndUpdate.
-  workInProgress.flags |= Update;
+  workInProgress.flags |= Update; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 function markRef(workInProgress: Fiber) {
@@ -217,6 +218,7 @@ let updateHostText;
 if (supportsMutation) {
   // Mutation mode
 
+  // 添加所有的孩子 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   appendAllChildren = function(
     parent: Instance,
     workInProgress: Fiber,
@@ -300,7 +302,7 @@ if (supportsMutation) {
     // If the update payload indicates that there is a change or if there
     // is a new ref we mark this as an update. All the work is done in commitWork.
     if (updatePayload) {
-      markUpdate(workInProgress);
+      markUpdate(workInProgress); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
   };
   updateHostText = function(
@@ -654,15 +656,16 @@ function cutOffTailIfNeeded(
   }
 }
 
+// 冒泡属性 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function bubbleProperties(completedWork: Fiber) {
   const didBailout =
     completedWork.alternate !== null &&
-    completedWork.alternate.child === completedWork.child;
+    completedWork.alternate.child === completedWork.child; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   let newChildLanes = NoLanes;
-  let subtreeFlags = NoFlags;
+  let subtreeFlags = NoFlags; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  if (!didBailout) {
+  if (!didBailout) { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Bubble up the earliest expiration time.
     if (enableProfilerTimer && (completedWork.mode & ProfileMode) !== NoMode) {
       // In profiling mode, resetChildExpirationTime is also used to reset
@@ -677,8 +680,8 @@ function bubbleProperties(completedWork: Fiber) {
           mergeLanes(child.lanes, child.childLanes),
         );
 
-        subtreeFlags |= child.subtreeFlags;
-        subtreeFlags |= child.flags;
+        subtreeFlags |= child.subtreeFlags; // ++++++++++++++++++++++++++++++++++++++++++++++++++
+        subtreeFlags |= child.flags; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         // When a fiber is cloned, its actualDuration is reset to 0. This value will
         // only be updated if work is done on the fiber (i.e. it doesn't bailout).
@@ -697,27 +700,32 @@ function bubbleProperties(completedWork: Fiber) {
 
       completedWork.actualDuration = actualDuration;
       completedWork.treeBaseDuration = treeBaseDuration;
-    } else {
-      let child = completedWork.child;
+    } else { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      let child = completedWork.child; // +++++++++++++++++++++++++++++++++++++++++++++++
+      
+      // while循环// +++++++++++++++++++++++++++++++++++++++++++++++++++++
       while (child !== null) {
         newChildLanes = mergeLanes(
           newChildLanes,
           mergeLanes(child.lanes, child.childLanes),
         );
 
-        subtreeFlags |= child.subtreeFlags;
-        subtreeFlags |= child.flags;
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        subtreeFlags |= child.subtreeFlags; // child的subtreeFlags
+        subtreeFlags |= child.flags; // child的flags
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
 
         // Update the return pointer so the tree is consistent. This is a code
         // smell because it assumes the commit phase is never concurrent with
         // the render phase. Will address during refactor to alternate model.
-        child.return = completedWork;
+        child.return = completedWork; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-        child = child.sibling;
+        child = child.sibling; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
     }
 
-    completedWork.subtreeFlags |= subtreeFlags;
+    // 更新completedWork的subtreeFlags - 它的值会和它的children的flags是有直接关系的 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    completedWork.subtreeFlags |= subtreeFlags; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++
   } else {
     // Bubble up the earliest expiration time.
     if (enableProfilerTimer && (completedWork.mode & ProfileMode) !== NoMode) {
@@ -736,8 +744,10 @@ function bubbleProperties(completedWork: Fiber) {
         // so we should bubble those up even during a bailout. All the other
         // flags have a lifetime only of a single render + commit, so we should
         // ignore them.
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         subtreeFlags |= child.subtreeFlags & StaticMask;
         subtreeFlags |= child.flags & StaticMask;
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         // $FlowFixMe[unsafe-addition] addition with possible null/undefined value
         treeBaseDuration += child.treeBaseDuration;
@@ -757,8 +767,10 @@ function bubbleProperties(completedWork: Fiber) {
         // so we should bubble those up even during a bailout. All the other
         // flags have a lifetime only of a single render + commit, so we should
         // ignore them.
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         subtreeFlags |= child.subtreeFlags & StaticMask;
         subtreeFlags |= child.flags & StaticMask;
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         // Update the return pointer so the tree is consistent. This is a code
         // smell because it assumes the commit phase is never concurrent with
@@ -769,9 +781,10 @@ function bubbleProperties(completedWork: Fiber) {
       }
     }
 
-    completedWork.subtreeFlags |= subtreeFlags;
+    completedWork.subtreeFlags |= subtreeFlags; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
   }
 
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   completedWork.childLanes = newChildLanes;
 
   return didBailout;
@@ -864,6 +877,7 @@ function completeDehydratedSuspenseBoundary(
   }
 }
 
+// 完成工作 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function completeWork(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -879,15 +893,15 @@ function completeWork(
     case IndeterminateComponent:
     case LazyComponent:
     case SimpleMemoComponent:
-    case FunctionComponent:
+    case FunctionComponent: // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ForwardRef:
     case Fragment:
     case Mode:
     case Profiler:
     case ContextConsumer:
     case MemoComponent:
-      bubbleProperties(workInProgress);
-      return null;
+      bubbleProperties(workInProgress); // 冒泡属性++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      return null; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ClassComponent: {
       const Component = workInProgress.type;
       if (isLegacyContextProvider(Component)) {
@@ -896,8 +910,8 @@ function completeWork(
       bubbleProperties(workInProgress);
       return null;
     }
-    case HostRoot: {
-      const fiberRoot = (workInProgress.stateNode: FiberRoot);
+    case HostRoot: { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      const fiberRoot = (workInProgress.stateNode: FiberRoot); // FiberRootNode // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
       if (enableTransitionTracing) {
         const transitions = getWorkInProgressTransitions();
@@ -946,8 +960,10 @@ function completeWork(
           if (current !== null) {
             const prevState: RootState = current.memoizedState;
             if (
+              // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+              // 检查是否这是一个客户端root // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
               // Check if this is a client root
-              !prevState.isDehydrated ||
+              !prevState.isDehydrated || // true
               // Check if we reverted to client rendering (e.g. due to an error)
               (workInProgress.flags & ForceClientRender) !== NoFlags
             ) {
@@ -957,7 +973,12 @@ function completeWork(
               // updates too, because current.child would only be null if the
               // previous render was null (so the container would already
               // be empty).
-              workInProgress.flags |= Snapshot;
+
+              // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+              // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+              // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+              // 相当于FiberRootNode.current.alternate.flags |= Snapshot; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+              workInProgress.flags |= Snapshot; // 1024 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
               // If this was a forced client render, there may have been
               // recoverable errors during first hydration attempt. If so, add
@@ -967,8 +988,10 @@ function completeWork(
           }
         }
       }
+
       updateHostContainer(current, workInProgress);
-      bubbleProperties(workInProgress);
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      bubbleProperties(workInProgress); // 冒泡属性+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       if (enableTransitionTracing) {
         if ((workInProgress.subtreeFlags & Visibility) !== NoFlags) {
           // If any of our suspense children toggle visibility, this means that
@@ -977,7 +1000,7 @@ function completeWork(
           workInProgress.flags |= Passive;
         }
       }
-      return null;
+      return null; // 返回null++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
     case HostResource: {
       if (enableFloat && supportsResources) {
@@ -1091,17 +1114,19 @@ function completeWork(
             // commit-phase we mark this as such.
             markUpdate(workInProgress);
           }
-        } else {
+        } else { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
           const rootContainerInstance = getRootHostContainer();
-          const instance = createInstance(
+          // 创建dom元素
+          const instance = createInstance( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             type,
             newProps,
             rootContainerInstance,
             currentHostContext,
             workInProgress,
           );
-          appendAllChildren(instance, workInProgress, false, false);
-          workInProgress.stateNode = instance;
+          // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          appendAllChildren(instance, workInProgress, false, false); // 添加所有的孩子到当前的dom上 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          workInProgress.stateNode = instance; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
           // Certain renderers require commit-time effects for initial mount.
           // (eg DOM renderer supports auto-focus for certain elements).
@@ -1123,8 +1148,10 @@ function completeWork(
           markRef(workInProgress);
         }
       }
-      bubbleProperties(workInProgress);
-      return null;
+
+      // 冒泡属性
+      bubbleProperties(workInProgress); // 冒泡属性+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      return null; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++====++++++++++++++++++++++++++++++++++++++++++++++++
     }
     case HostText: {
       const newText = newProps;
@@ -1133,7 +1160,7 @@ function completeWork(
         // If we have an alternate, that means this is an update and we need
         // to schedule a side-effect to do the updates.
         updateHostText(current, workInProgress, oldText, newText);
-      } else {
+      } else { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         if (typeof newText !== 'string') {
           if (workInProgress.stateNode === null) {
             throw new Error(
@@ -1151,7 +1178,7 @@ function completeWork(
             markUpdate(workInProgress);
           }
         } else {
-          workInProgress.stateNode = createTextInstance(
+          workInProgress.stateNode = createTextInstance( // 创建文本实例- 也就是创建真实文本dom
             newText,
             rootContainerInstance,
             currentHostContext,
@@ -1159,8 +1186,9 @@ function completeWork(
           );
         }
       }
-      bubbleProperties(workInProgress);
-      return null;
+      // 冒泡属性
+      bubbleProperties(workInProgress); // 冒泡属性+++++++++++++++++++++=++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+      return null; // 返回null // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
     case SuspenseComponent: {
       popSuspenseHandler(workInProgress);

@@ -304,18 +304,19 @@ if (__DEV__) {
   didWarnAboutDefaultPropsOnFunctionComponent = {};
 }
 
-export function reconcileChildren(
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+export function reconcileChildren( // _+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   current: Fiber | null,
   workInProgress: Fiber,
   nextChildren: any,
   renderLanes: Lanes,
 ) {
-  if (current === null) {
+  if (current === null) { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // If this is a fresh new component that hasn't been rendered yet, we
     // won't update its child set by applying minimal side-effects. Instead,
     // we will add them all to the child before it gets rendered. That means
     // we can optimize this reconciliation pass by not tracking side-effects.
-    workInProgress.child = mountChildFibers(
+    workInProgress.child = mountChildFibers( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       workInProgress,
       null,
       nextChildren,
@@ -328,7 +329,7 @@ export function reconcileChildren(
 
     // If we had any progressed work already, that is invalid at this point so
     // let's throw it out.
-    workInProgress.child = reconcileChildFibers(
+    workInProgress.child = reconcileChildFibers( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       workInProgress,
       current.child,
       nextChildren,
@@ -1078,6 +1079,7 @@ function markRef(current: Fiber | null, workInProgress: Fiber) {
   }
 }
 
+// 更新函数式组件
 function updateFunctionComponent(
   current,
   workInProgress,
@@ -1171,7 +1173,9 @@ function updateFunctionComponent(
 
   // React DevTools reads this flag.
   workInProgress.flags |= PerformedWork;
-  reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  reconcileChildren(current, workInProgress, nextChildren, renderLanes); // ++++++++++++++++++++++++++++++++++++++++++++++++
   return workInProgress.child;
 }
 
@@ -1405,6 +1409,7 @@ function pushHostRootContext(workInProgress) {
   pushHostContainer(workInProgress, root.containerInfo);
 }
 
+// 更新主机root
 function updateHostRoot(current, workInProgress, renderLanes) {
   pushHostRootContext(workInProgress);
 
@@ -1412,14 +1417,16 @@ function updateHostRoot(current, workInProgress, renderLanes) {
     throw new Error('Should have a current fiber. This is a bug in React.');
   }
 
-  const nextProps = workInProgress.pendingProps;
-  const prevState = workInProgress.memoizedState;
-  const prevChildren = prevState.element;
-  cloneUpdateQueue(current, workInProgress);
-  processUpdateQueue(workInProgress, nextProps, null, renderLanes);
+  const nextProps = workInProgress.pendingProps; // 要更新的属性
+  const prevState = workInProgress.memoizedState; // 上一次的状态
+  const prevChildren = prevState.element; // 上一次的元素
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  cloneUpdateQueue(current, workInProgress); // 克隆更新队列
+  processUpdateQueue(workInProgress, nextProps, null, renderLanes); // 处理更新队列
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  const nextState: RootState = workInProgress.memoizedState;
-  const root: FiberRoot = workInProgress.stateNode;
+  const nextState: RootState = workInProgress.memoizedState; // 要更新的状态
+  const root: FiberRoot = workInProgress.stateNode; // FiberRootNode
   pushRootTransition(workInProgress, root, renderLanes);
 
   if (enableTransitionTracing) {
@@ -1437,8 +1444,10 @@ function updateHostRoot(current, workInProgress, renderLanes) {
 
   // Caution: React DevTools currently depends on this property
   // being called "element".
-  const nextChildren = nextState.element;
-  if (supportsHydration && prevState.isDehydrated) {
+  const nextChildren = nextState.element; // 现在的App
+
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (supportsHydration && prevState.isDehydrated) { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // This is a hydration root whose shell has not yet hydrated. We should
     // attempt to hydrate.
 
@@ -1525,16 +1534,18 @@ function updateHostRoot(current, workInProgress, renderLanes) {
         node = node.sibling;
       }
     }
-  } else {
+  } else { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // root是没有混合的。这要么是只客户端root，要么是以及混合了 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Root is not dehydrated. Either this is a client-only root, or it
     // already hydrated.
     resetHydrationState();
     if (nextChildren === prevChildren) {
       return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
     }
-    reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=++++++++++++++++++++++++++++
+    reconcileChildren(current, workInProgress, nextChildren, renderLanes); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++这里很重要
   }
-  return workInProgress.child;
+  return workInProgress.child; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 function mountHostRootWithoutHydrating(
@@ -1555,6 +1566,7 @@ function mountHostRootWithoutHydrating(
   return workInProgress.child;
 }
 
+// 更新组件组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateHostComponent(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -1572,6 +1584,7 @@ function updateHostComponent(
 
   let nextChildren = nextProps.children;
   const isDirectTextChild = shouldSetTextContent(type, nextProps);
+  // 是否为直接文本孩子
 
   if (isDirectTextChild) {
     // We special case a direct text child of a host node. This is a common
@@ -1586,6 +1599,7 @@ function updateHostComponent(
   }
 
   markRef(current, workInProgress);
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   reconcileChildren(current, workInProgress, nextChildren, renderLanes);
   return workInProgress.child;
 }
@@ -1638,13 +1652,15 @@ function updateHostSingleton(
   return workInProgress.child;
 }
 
+// 更新主机文本 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateHostText(current, workInProgress) {
   if (current === null) {
     tryToClaimNextHydratableInstance(workInProgress);
   }
+  // 这里没什么可做的。这是终端。我们将在之后立即执行完成步骤。
   // Nothing to do here. This is terminal. We'll do the completion step
   // immediately after.
-  return null;
+  return null; // 返回null // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 function mountLazyComponent(
@@ -1795,6 +1811,7 @@ function mountIncompleteClassComponent(
   );
 }
 
+// 挂载不确定的组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function mountIndeterminateComponent(
   _current,
   workInProgress,
@@ -1845,7 +1862,9 @@ function mountIndeterminateComponent(
 
     setIsRendering(true);
     ReactCurrentOwner.current = workInProgress;
-    value = renderWithHooks(
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // react-reconciler/src/ReactFiberHooks.new.js中的renderWithHooks函数
+    value = renderWithHooks( // 带有hooks的渲染 - 产生虚拟dom元素 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       null,
       workInProgress,
       Component,
@@ -1856,7 +1875,7 @@ function mountIndeterminateComponent(
     hasId = checkDidRenderIdHook();
     setIsRendering(false);
   } else {
-    value = renderWithHooks(
+    value = renderWithHooks( // 带有hooks的渲染 - 产生虚拟dom元素
       null,
       workInProgress,
       Component,
@@ -1870,8 +1889,9 @@ function mountIndeterminateComponent(
     markComponentRenderStopped();
   }
 
+  // React DevTools读取这个标记
   // React DevTools reads this flag.
-  workInProgress.flags |= PerformedWork;
+  workInProgress.flags |= PerformedWork; // 加上这个PerformedWork标记
 
   if (__DEV__) {
     // Support for module components is deprecated and is removed behind a flag.
@@ -1959,8 +1979,11 @@ function mountIndeterminateComponent(
       renderLanes,
     );
   } else {
+
+
+    // 在假设这是一个函数式组件下处理 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Proceed under the assumption that this is a function component
-    workInProgress.tag = FunctionComponent;
+    workInProgress.tag = FunctionComponent; // 给它的tag改为函数式组件标签 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     if (__DEV__) {
       if (disableLegacyContext && Component.contextTypes) {
         console.error(
@@ -1995,11 +2018,13 @@ function mountIndeterminateComponent(
       pushMaterializedTreeId(workInProgress);
     }
 
-    reconcileChildren(null, workInProgress, value, renderLanes);
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    reconcileChildren(null, workInProgress, value, renderLanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     if (__DEV__) {
       validateFunctionComponentInDev(workInProgress, Component);
     }
-    return workInProgress.child;
+    return workInProgress.child; // +++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 }
 
@@ -3562,6 +3587,7 @@ function resetSuspendedCurrentOnMountInLegacyMode(current, workInProgress) {
   }
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function bailoutOnAlreadyFinishedWork(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -3600,7 +3626,8 @@ function bailoutOnAlreadyFinishedWork(
   // This fiber doesn't have work, but its subtree does. Clone the child
   // fibers and continue.
   cloneChildFibers(current, workInProgress);
-  return workInProgress.child;
+  // 返回workInProgress的child属性 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  return workInProgress.child; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 function remountFiber(
@@ -3903,10 +3930,12 @@ function attemptEarlyBailoutIfNoScheduledUpdate(
       }
     }
   }
-  return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
+
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
-// 开始工作
+// 开始工作 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function beginWork(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -3930,6 +3959,7 @@ function beginWork(
     }
   }
 
+  // 之后的更新期间
   if (current !== null) {
     const oldProps = current.memoizedProps;
     const newProps = workInProgress.pendingProps;
@@ -3958,7 +3988,7 @@ function beginWork(
       ) {
         // No pending updates or context. Bail out now.
         didReceiveUpdate = false;
-        return attemptEarlyBailoutIfNoScheduledUpdate(
+        return attemptEarlyBailoutIfNoScheduledUpdate( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
           current,
           workInProgress,
           renderLanes,
@@ -3976,7 +4006,7 @@ function beginWork(
         didReceiveUpdate = false;
       }
     }
-  } else {
+  } else { // 第一次挂载期间
     didReceiveUpdate = false;
 
     if (getIsHydrating() && isForkedChild(workInProgress)) {
@@ -4000,11 +4030,11 @@ function beginWork(
   // the update queue. However, there's an exception: SimpleMemoComponent
   // sometimes bails out later in the begin phase. This indicates that we should
   // move this assignment out of the common path and into each branch.
-  workInProgress.lanes = NoLanes;
+  workInProgress.lanes = NoLanes; // 0 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  switch (workInProgress.tag) {
+  switch (workInProgress.tag) { // 标签
     case IndeterminateComponent: {
-      return mountIndeterminateComponent(
+      return mountIndeterminateComponent( // 挂载不知道的组件 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         current,
         workInProgress,
         workInProgress.type,
@@ -4020,14 +4050,14 @@ function beginWork(
         renderLanes,
       );
     }
-    case FunctionComponent: {
+    case FunctionComponent: { // 函数式组件
       const Component = workInProgress.type;
       const unresolvedProps = workInProgress.pendingProps;
       const resolvedProps =
         workInProgress.elementType === Component
           ? unresolvedProps
           : resolveDefaultProps(Component, unresolvedProps);
-      return updateFunctionComponent(
+      return updateFunctionComponent( // 更新函数式组件 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         current,
         workInProgress,
         Component,
@@ -4050,8 +4080,8 @@ function beginWork(
         renderLanes,
       );
     }
-    case HostRoot:
-      return updateHostRoot(current, workInProgress, renderLanes);
+    case HostRoot: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      return updateHostRoot(current, workInProgress, renderLanes); // ++++++++++++++++++++++++++++++++++++
     case HostResource:
       if (enableFloat && supportsResources) {
         return updateHostResource(current, workInProgress, renderLanes);
@@ -4062,9 +4092,9 @@ function beginWork(
         return updateHostSingleton(current, workInProgress, renderLanes);
       }
     // eslint-disable-next-line no-fallthrough
-    case HostComponent:
+    case HostComponent: // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       return updateHostComponent(current, workInProgress, renderLanes);
-    case HostText:
+    case HostText: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       return updateHostText(current, workInProgress);
     case SuspenseComponent:
       return updateSuspenseComponent(current, workInProgress, renderLanes);
@@ -4086,7 +4116,7 @@ function beginWork(
       );
     }
     case Fragment:
-      return updateFragment(current, workInProgress, renderLanes);
+      return updateFragment(current, workInProgress, renderLanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case Mode:
       return updateMode(current, workInProgress, renderLanes);
     case Profiler:
@@ -4192,4 +4222,5 @@ function beginWork(
   );
 }
 
-export {beginWork};
+// 暴露此beginWork函数
+export {beginWork}; // +++++++++++++++++++++++++++++++++++++++++++++

@@ -272,11 +272,12 @@ type ChildReconciler = (
   lanes: Lanes,
 ) => Fiber | null;
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // This wrapper function exists because I expect to clone the code in each path
 // to be able to optimize each path individually by branching early. This needs
 // a compiler or we can do it manually. Helpers that don't need this branching
 // live outside of this function.
-function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
+function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   function deleteChild(returnFiber: Fiber, childToDelete: Fiber): void {
     if (!shouldTrackSideEffects) {
       // Noop.
@@ -370,13 +371,16 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
     }
   }
 
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
   function placeSingleChild(newFiber: Fiber): Fiber {
+    // 对于单节点情况，这更简单。我们只需要做插入新子节点的安置。 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // This is simpler for the single child case. We only need to do a
     // placement for inserting new children.
     if (shouldTrackSideEffects && newFiber.alternate === null) {
-      newFiber.flags |= Placement | PlacementDEV;
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      newFiber.flags |= Placement | PlacementDEV; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
-    return newFiber;
+    return newFiber; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
   function updateTextNode(
@@ -747,7 +751,8 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
     return knownKeys;
   }
 
-  function reconcileChildrenArray(
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++
+  function reconcileChildrenArray( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     returnFiber: Fiber,
     currentFirstChild: Fiber | null,
     newChildren: Array<any>,
@@ -784,7 +789,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
     let resultingFirstChild: Fiber | null = null;
     let previousNewFiber: Fiber | null = null;
 
-    let oldFiber = currentFirstChild;
+    let oldFiber = currentFirstChild; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     let lastPlacedIndex = 0;
     let newIdx = 0;
     let nextOldFiber = null;
@@ -843,20 +848,21 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
       return resultingFirstChild;
     }
 
-    if (oldFiber === null) {
+    // 'count is '对应的fiber以及0对应的fiber创建出来 - 并且'count is '的fiber的sibling指向它 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    if (oldFiber === null) { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // If we don't have any more existing children we can choose a fast path
       // since the rest will all be insertions.
       for (; newIdx < newChildren.length; newIdx++) {
-        const newFiber = createChild(returnFiber, newChildren[newIdx], lanes);
+        const newFiber = createChild(returnFiber, newChildren[newIdx], lanes); // ++++++++++++++++++++++++++++++++++++++
         if (newFiber === null) {
           continue;
         }
-        lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
+        lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx); // ++++++++++++++++++++++++++++++++++
         if (previousNewFiber === null) {
           // TODO: Move out of the loop. This only happens for the first run.
           resultingFirstChild = newFiber;
         } else {
-          previousNewFiber.sibling = newFiber;
+          previousNewFiber.sibling = newFiber; // +++++++++++++++++++++++++++++++++++++++++++++++++
         }
         previousNewFiber = newFiber;
       }
@@ -864,14 +870,16 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
         const numberOfForks = newIdx;
         pushTreeFork(returnFiber, numberOfForks);
       }
-      return resultingFirstChild;
+      return resultingFirstChild; // 返回'count is '这个fiber // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
 
+    // 将所有的孩子添加到一个key map中以便于快速查找
     // Add all children to a key map for quick lookups.
-    const existingChildren = mapRemainingChildren(returnFiber, oldFiber);
+    const existingChildren = mapRemainingChildren(returnFiber, oldFiber); // 映射剩余的孩子 // +++++++++++++++++++++++++++++++++++++++++++
 
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Keep scanning and use the map to restore deleted items as moves.
-    for (; newIdx < newChildren.length; newIdx++) {
+    for (; newIdx < newChildren.length; newIdx++) { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       const newFiber = updateFromMap(
         existingChildren,
         returnFiber,
@@ -891,7 +899,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
             );
           }
         }
-        lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
+        lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx); // +++++++++++++++++++++++++++++++++++++++++++++
         if (previousNewFiber === null) {
           resultingFirstChild = newFiber;
         } else {
@@ -1116,6 +1124,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
     return resultingFirstChild;
   }
 
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   function reconcileSingleTextNode(
     returnFiber: Fiber,
     currentFirstChild: Fiber | null,
@@ -1135,11 +1144,12 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
     // The existing first child is not a text node so we need to create one
     // and delete the existing ones.
     deleteRemainingChildren(returnFiber, currentFirstChild);
-    const created = createFiberFromText(textContent, returnFiber.mode, lanes);
+    const created = createFiberFromText(textContent, returnFiber.mode, lanes); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     created.return = returnFiber;
-    return created;
+    return created; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++
   function reconcileSingleElement(
     returnFiber: Fiber,
     currentFirstChild: Fiber | null,
@@ -1210,10 +1220,11 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
       created.return = returnFiber;
       return created;
     } else {
-      const created = createFiberFromElement(element, returnFiber.mode, lanes);
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      const created = createFiberFromElement(element, returnFiber.mode, lanes); // 从元素创建fiber
       created.ref = coerceRef(returnFiber, currentFirstChild, element);
-      created.return = returnFiber;
-      return created;
+      created.return = returnFiber; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      return created; // 返回这个fiber
     }
   }
 
@@ -1256,7 +1267,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
   // This API will tag the children with the side-effect of the reconciliation
   // itself. They will be added to the side-effect list as we pass through the
   // children and the parent.
-  function reconcileChildFibers(
+  function reconcileChildFibers( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     returnFiber: Fiber,
     currentFirstChild: Fiber | null,
     newChild: any,
@@ -1279,12 +1290,14 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
       newChild = newChild.props.children;
     }
 
+    // 处理对象类型 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Handle object types
     if (typeof newChild === 'object' && newChild !== null) {
       switch (newChild.$$typeof) {
-        case REACT_ELEMENT_TYPE:
-          return placeSingleChild(
-            reconcileSingleElement(
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        case REACT_ELEMENT_TYPE: // App
+          return placeSingleChild( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            reconcileSingleElement( // +++++++++++++++++++++++++++++++++++++++++++
               returnFiber,
               currentFirstChild,
               newChild,
@@ -1312,8 +1325,9 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
           );
       }
 
-      if (isArray(newChild)) {
-        return reconcileChildrenArray(
+      if (isArray(newChild)) { // ['count is ', 0]
+        // 注意：没有placeSingleChild方法的执行的 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        return reconcileChildrenArray( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++=++++++++++++++++++++++++++++++++++++++++++
           returnFiber,
           currentFirstChild,
           newChild,
@@ -1338,7 +1352,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
       typeof newChild === 'number'
     ) {
       return placeSingleChild(
-        reconcileSingleTextNode(
+        reconcileSingleTextNode( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
           returnFiber,
           currentFirstChild,
           '' + newChild,
@@ -1353,17 +1367,22 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler {
       }
     }
 
+    // 其余的案例都被视为空。 // ++++++++++++++++++++++++++++++++++++++++++++++
     // Remaining cases are all treated as empty.
     return deleteRemainingChildren(returnFiber, currentFirstChild);
   }
 
-  return reconcileChildFibers;
+  return reconcileChildFibers; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export const reconcileChildFibers: ChildReconciler = createChildReconciler(
-  true,
+  true, // 传入true参数 // ++++++++++++++++++++++++++++
 );
-export const mountChildFibers: ChildReconciler = createChildReconciler(false);
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+export const mountChildFibers: ChildReconciler = createChildReconciler(false); // 传入false // +++++++++++++++++++++++++++++++++++
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 export function cloneChildFibers(
   current: Fiber | null,

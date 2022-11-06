@@ -406,6 +406,7 @@ function areHookInputsEqual(
   return true;
 }
 
+// 带有hooks的渲染 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function renderWithHooks<Props, SecondArg>(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -415,7 +416,7 @@ export function renderWithHooks<Props, SecondArg>(
   nextRenderLanes: Lanes,
 ): any {
   renderLanes = nextRenderLanes;
-  currentlyRenderingFiber = workInProgress;
+  currentlyRenderingFiber = workInProgress; // currentlyRenderingFiber // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   if (__DEV__) {
     hookTypesDev =
@@ -428,9 +429,12 @@ export function renderWithHooks<Props, SecondArg>(
       current !== null && current.type !== workInProgress.type;
   }
 
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 首先重置状态 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   workInProgress.memoizedState = null;
   workInProgress.updateQueue = null;
   workInProgress.lanes = NoLanes;
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // The following should have already been reset
   // currentHook = null;
@@ -449,7 +453,8 @@ export function renderWithHooks<Props, SecondArg>(
   // so memoizedState would be null during updates and mounts.
   if (__DEV__) {
     if (current !== null && current.memoizedState !== null) {
-      ReactCurrentDispatcher.current = HooksDispatcherOnUpdateInDEV;
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      ReactCurrentDispatcher.current = HooksDispatcherOnUpdateInDEV; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     } else if (hookTypesDev !== null) {
       // This dispatcher handles an edge case where a component is updating,
       // but no stateful hooks have been used.
@@ -458,7 +463,8 @@ export function renderWithHooks<Props, SecondArg>(
       // This dispatcher does that.
       ReactCurrentDispatcher.current = HooksDispatcherOnMountWithHookTypesInDEV;
     } else {
-      ReactCurrentDispatcher.current = HooksDispatcherOnMountInDEV;
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      ReactCurrentDispatcher.current = HooksDispatcherOnMountInDEV; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
   } else {
     ReactCurrentDispatcher.current =
@@ -470,15 +476,20 @@ export function renderWithHooks<Props, SecondArg>(
   // If this is a replay, restore the thenable state from the previous attempt.
   const prevThenableState = getSuspendedThenableState();
   prepareThenableState(prevThenableState);
-  let children = Component(props, secondArg);
 
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  let children = Component(props, secondArg); // 直接调用组件函数 - 返回虚拟dom元素
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // 检查是否是渲染阶段的更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Check if there was a render phase update
-  if (didScheduleRenderPhaseUpdateDuringThisPass) {
+  if (didScheduleRenderPhaseUpdateDuringThisPass) { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Keep rendering in a loop for as long as render phase updates continue to
     // be scheduled. Use a counter to prevent infinite loops.
     let numberOfReRenders: number = 0;
     do {
-      didScheduleRenderPhaseUpdateDuringThisPass = false;
+      didScheduleRenderPhaseUpdateDuringThisPass = false; // ++++++++++++++++++++++++++++++++++++++++++++++++++
       localIdCounter = 0;
       thenableIndexCounter = 0;
 
@@ -508,12 +519,16 @@ export function renderWithHooks<Props, SecondArg>(
       }
 
       ReactCurrentDispatcher.current = __DEV__
-        ? HooksDispatcherOnRerenderInDEV
+        ? HooksDispatcherOnRerenderInDEV // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         : HooksDispatcherOnRerender;
 
       prepareThenableState(prevThenableState);
-      children = Component(props, secondArg);
-    } while (didScheduleRenderPhaseUpdateDuringThisPass);
+      
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      children = Component(props, secondArg); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    } while (didScheduleRenderPhaseUpdateDuringThisPass); // +++++++++++++++++++++++++++++++++++++++++++++
+
   }
 
   // We can assume the previous dispatcher is always this one, since we set it
@@ -529,11 +544,13 @@ export function renderWithHooks<Props, SecondArg>(
   const didRenderTooFewHooks =
     currentHook !== null && currentHook.next !== null;
 
+  // ++++++++++++++++++++++++++++++++++++++++++++++
   renderLanes = NoLanes;
-  currentlyRenderingFiber = (null: any);
+  currentlyRenderingFiber = (null: any); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   currentHook = null;
   workInProgressHook = null;
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   if (__DEV__) {
     currentHookNameInDev = null;
@@ -594,6 +611,8 @@ export function renderWithHooks<Props, SecondArg>(
       }
     }
   }
+
+  // 返回children // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   return children;
 }
 
@@ -1795,6 +1814,7 @@ function updateRef<T>(initialValue: T): {current: T} {
   return hook.memoizedState;
 }
 
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function mountEffectImpl(
   fiberFlags,
   hookFlags,
@@ -1803,7 +1823,8 @@ function mountEffectImpl(
 ): void {
   const hook = mountWorkInProgressHook();
   const nextDeps = deps === undefined ? null : deps;
-  currentlyRenderingFiber.flags |= fiberFlags;
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  currentlyRenderingFiber.flags |= fiberFlags; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   hook.memoizedState = pushEffect(
     HookHasEffect | hookFlags,
     create,
@@ -1853,7 +1874,8 @@ function mountEffect(
     (currentlyRenderingFiber.mode & StrictEffectsMode) !== NoMode
   ) {
     return mountEffectImpl(
-      MountPassiveDevEffect | PassiveEffect | PassiveStaticEffect,
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      MountPassiveDevEffect | PassiveEffect | PassiveStaticEffect, // 8390656 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       HookPassive,
       create,
       deps,
