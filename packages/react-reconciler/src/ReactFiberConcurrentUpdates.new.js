@@ -52,14 +52,18 @@ let concurrentQueuesIndex = 0;
 
 let concurrentlyUpdatedLanes: Lanes = NoLanes;
 
+// 完成排队中并发更新 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function finishQueueingConcurrentUpdates(): void {
   const endIndex = concurrentQueuesIndex;
-  concurrentQueuesIndex = 0;
+  concurrentQueuesIndex = 0; // 重置为0
 
   concurrentlyUpdatedLanes = NoLanes;
 
   let i = 0;
-  while (i < endIndex) {
+  while (i < endIndex) { // while循环
+
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 一一取出 - 并置为null
     const fiber: Fiber = concurrentQueues[i];
     concurrentQueues[i++] = null;
     const queue: ConcurrentQueue = concurrentQueues[i];
@@ -69,17 +73,22 @@ export function finishQueueingConcurrentUpdates(): void {
     const lane: Lane = concurrentQueues[i];
     concurrentQueues[i++] = null;
 
+    // queue和update都不为null
     if (queue !== null && update !== null) {
-      const pending = queue.pending;
-      if (pending === null) {
+      const pending = queue.pending; // 取出queue的pending属性
+      if (pending === null) { // 这是第一次更新。创建一个循环列表。
         // This is the first update. Create a circular list.
-        update.next = update;
+        update.next = update; // 
       } else {
+        // 现在的指向之前的
         update.next = pending.next;
+        // 之前的指向现在的
         pending.next = update;
       }
+      // 使queue.pending指向现在的update
       queue.pending = update;
     }
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     if (lane !== NoLane) {
       markUpdateLaneFromFiberToRoot(fiber, update, lane);
@@ -123,6 +132,7 @@ function enqueueUpdate(
   }
 }
 
+// 入队列并发hook更新
 export function enqueueConcurrentHookUpdate<S, A>(
   fiber: Fiber,
   queue: HookQueue<S, A>,

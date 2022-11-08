@@ -608,6 +608,7 @@ export function requestUpdateLane(fiber: Fiber): Lane {
   // getCurrentEventPriority是16
   // DefaultEventPriority就是16
 
+  // 特别例子
   // Special cases
   const mode = fiber.mode;
   if ((mode & ConcurrentMode) === NoMode) {
@@ -1807,7 +1808,9 @@ function prepareFreshStack(root: FiberRoot, lanes: Lanes): Fiber { // ++++++++++
   workInProgressRootConcurrentErrors = null;
   workInProgressRootRecoverableErrors = null;
 
-  finishQueueingConcurrentUpdates();
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  finishQueueingConcurrentUpdates(); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 重要的
 
   if (__DEV__) {
     ReactStrictModeWarnings.discardPendingWarnings();
@@ -2053,7 +2056,7 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
 
   // 现在渲染阶段已经完成，处理队列是安全的。
   // It's safe to process the queue now that the render phase is complete.
-  finishQueueingConcurrentUpdates();
+  finishQueueingConcurrentUpdates(); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // 默认是RootInProgress 0
   return workInProgressRootExitStatus; // RootCompleted 5 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2180,7 +2183,7 @@ function renderRootConcurrent(root: FiberRoot, lanes: Lanes) {
 
     // 现在渲染阶段已经完成，处理队列是安全的。
     // It's safe to process the queue now that the render phase is complete.
-    finishQueueingConcurrentUpdates();
+    finishQueueingConcurrentUpdates(); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
 
     // 返回最终退出状态。
     // Return the final exit status.

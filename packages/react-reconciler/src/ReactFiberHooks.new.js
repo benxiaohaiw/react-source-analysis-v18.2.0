@@ -691,38 +691,48 @@ export function resetHooksAfterThrow(): void {
   thenableIndexCounter = 0;
 }
 
+// 挂载wip hook
 function mountWorkInProgressHook(): Hook {
+  // 准备hook对象
   const hook: Hook = {
-    memoizedState: null,
+    memoizedState: null, // hook中的上一次状态
 
-    baseState: null,
-    baseQueue: null,
-    queue: null,
+    baseState: null, // hook中的基础状态
+    baseQueue: null, // hook中的基础queue
+    queue: null, // hook中的queue
 
-    next: null,
+    next: null, // hook对象的next
   };
 
   if (workInProgressHook === null) {
+    // 这是列表中的第一个hook
     // This is the first hook in the list
-    currentlyRenderingFiber.memoizedState = workInProgressHook = hook;
+    currentlyRenderingFiber.memoizedState = workInProgressHook = hook; // 设置给当前正在渲染的fiber的上一次状态中 - 同时挂到workInProgressHook下
   } else {
+    // 追加到列表的末尾
     // Append to the end of the list
-    workInProgressHook = workInProgressHook.next = hook;
+    workInProgressHook = workInProgressHook.next = hook; // 添加到workInProgressHook的next属性上 - 同时改变workInProgressHook为当前的hook对象
   }
+  // 返回workInProgressHook执行的hook对象
   return workInProgressHook;
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateWorkInProgressHook(): Hook {
   // This function is used both for updates and for re-renders triggered by a
   // render phase update. It assumes there is either a current hook we can
   // clone, or a work-in-progress hook from a previous render pass that we can
   // use as a base. When we reach the end of the base list, we must switch to
   // the dispatcher used for mounts.
-  let nextCurrentHook: null | Hook;
+  let nextCurrentHook: null | Hook; // 它是指向current hook的
+  /* 
+  currentHook和workInProgressHook在当前这里renderWithHooks函数中执行完Component函数之后就全部置为null了 // ++++++++++++++++++++++++++++++++++++++++
+  同时它们默认也是为null的
+  */
   if (currentHook === null) {
-    const current = currentlyRenderingFiber.alternate;
+    const current = currentlyRenderingFiber.alternate; // 当前正在渲染中的fiber的alternate属性拿到对应的current
     if (current !== null) {
-      nextCurrentHook = current.memoizedState;
+      nextCurrentHook = current.memoizedState; // 直接取它的hook对象 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     } else {
       nextCurrentHook = null;
     }
@@ -730,9 +740,10 @@ function updateWorkInProgressHook(): Hook {
     nextCurrentHook = currentHook.next;
   }
 
-  let nextWorkInProgressHook: null | Hook;
+  let nextWorkInProgressHook: null | Hook; // 它是指向workInProgress hook的
   if (workInProgressHook === null) {
-    nextWorkInProgressHook = currentlyRenderingFiber.memoizedState;
+    // null
+    nextWorkInProgressHook = currentlyRenderingFiber.memoizedState; // 在renderWithHooks函数中每次执行Component函数之前都会重置fiber的memoizedState为null // ++++++++++++++++++
   } else {
     nextWorkInProgressHook = workInProgressHook.next;
   }
@@ -744,33 +755,39 @@ function updateWorkInProgressHook(): Hook {
 
     currentHook = nextCurrentHook;
   } else {
+
+    // 则从current hook中克隆一个 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Clone from the current hook.
 
     if (nextCurrentHook === null) {
       throw new Error('Rendered more hooks than during the previous render.');
     }
 
-    currentHook = nextCurrentHook;
+    // current hook指向nextCurrentHook
+    currentHook = nextCurrentHook; // 也就是current hook链表中的第一个hook对象
 
+    // 准备新的hook对象
     const newHook: Hook = {
-      memoizedState: currentHook.memoizedState,
+      memoizedState: currentHook.memoizedState, // current hook的上一次状态
 
-      baseState: currentHook.baseState,
+      baseState: currentHook.baseState, // ++++++++++++++++++++++++++++++
       baseQueue: currentHook.baseQueue,
-      queue: currentHook.queue,
+      // 这里复用
+      queue: currentHook.queue, // 它一直是dispatchSetState函数绑定的那一个同一个的queue对象，这里复用它++++++++++++++++++++++++++++++++++++++
 
-      next: null,
+      next: null, // next指针
     };
 
     if (workInProgressHook === null) {
+      // 这是列表中的第一个钩子。
       // This is the first hook in the list.
-      currentlyRenderingFiber.memoizedState = workInProgressHook = newHook;
+      currentlyRenderingFiber.memoizedState = workInProgressHook = newHook; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     } else {
       // Append to the end of the list.
-      workInProgressHook = workInProgressHook.next = newHook;
+      workInProgressHook = workInProgressHook.next = newHook; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
   }
-  return workInProgressHook;
+  return workInProgressHook; // 返回workInProgressHook
 }
 
 // NOTE: defining two versions of this function to avoid size impact when this feature is disabled.
@@ -910,13 +927,16 @@ function mountReducer<S, I, A>(
   return [hook.memoizedState, dispatch];
 }
 
+// 更新reducer // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateReducer<S, I, A>(
   reducer: (S, A) => S,
   initialArg: I,
   init?: I => S,
 ): [S, Dispatch<A>] {
-  const hook = updateWorkInProgressHook();
-  const queue = hook.queue;
+
+  // 执行updateWorkInProgressHook函数
+  const hook = updateWorkInProgressHook(); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  const queue = hook.queue; // 取出hook对象上的queue - 其实它就是dispatchSetState函数绑定的那一个queue - 一直没有变过
 
   if (queue === null) {
     throw new Error(
@@ -924,15 +944,16 @@ function updateReducer<S, I, A>(
     );
   }
 
-  queue.lastRenderedReducer = reducer;
+  queue.lastRenderedReducer = reducer; // 依然还是basicStateReducer函数
 
-  const current: Hook = (currentHook: any);
+  const current: Hook = (currentHook: any); // current hook链表中的第一个hook对象
 
   // The last rebase update that is NOT part of the base state.
-  let baseQueue = current.baseQueue;
+  let baseQueue = current.baseQueue; // null
 
   // The last pending update that hasn't been processed yet.
-  const pendingQueue = queue.pending;
+  const pendingQueue = queue.pending; // 取出没有变过的（dispatchSetState绑定的queue对象）queue对象中的pending queue，其实就是依靠update对象形成的环形链表 // ++++++++++++++++
+
   if (pendingQueue !== null) {
     // We have new updates that haven't been processed yet.
     // We'll add them to the base queue.
@@ -942,6 +963,11 @@ function updateReducer<S, I, A>(
       const pendingFirst = pendingQueue.next;
       baseQueue.next = pendingFirst;
       pendingQueue.next = baseFirst;
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 环形链表 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 环形链表的特征是最后一个的next指向第一个
+      // 0 -> 1 -> 2 -> 0
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
     if (__DEV__) {
       if (current.baseQueue !== baseQueue) {
@@ -953,19 +979,24 @@ function updateReducer<S, I, A>(
         );
       }
     }
-    current.baseQueue = baseQueue = pendingQueue;
+
+    // 始终指向环形链表的最后一个 - 目的是为了直接能够拿到第一个update // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    current.baseQueue = baseQueue = pendingQueue; // update对象形成的环形链表
+    // 置空queue（dispatchSetState绑定的queue对象）中的pending属性 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     queue.pending = null;
   }
 
   if (baseQueue !== null) {
+    // 我们有一个队列要去处理 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // We have a queue to process.
-    const first = baseQueue.next;
-    let newState = current.baseState;
+    const first = baseQueue.next; // 通过环形链表最后一个的next拿到环形链表的第一个update对象
+    let newState = current.baseState; // 获取current hook对象上的基础状态，作为新状态，它是要作为下面的基础的 // ++++++++++++++++++++++++++++++++++++++++++++++
 
     let newBaseState = null;
     let newBaseQueueFirst = null;
     let newBaseQueueLast = null;
     let update = first;
+    // do while循环
     do {
       // An extra OffscreenLane bit is added to updates that were made to
       // a hidden tree, so that we can distinguish them from updates that were
@@ -1005,7 +1036,7 @@ function updateReducer<S, I, A>(
           updateLane,
         );
         markSkippedUpdateLanes(updateLane);
-      } else {
+      } else { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // This update does have sufficient priority.
 
         if (newBaseQueueLast !== null) {
@@ -1022,36 +1053,46 @@ function updateReducer<S, I, A>(
           newBaseQueueLast = newBaseQueueLast.next = clone;
         }
 
+        // 更新newState
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // Process this update.
-        if (update.hasEagerState) {
+        if (update.hasEagerState) { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
           // If this update is a state update (not a reducer) and was processed eagerly,
           // we can use the eagerly computed state
           newState = ((update.eagerState: any): S);
         } else {
           const action = update.action;
-          newState = reducer(newState, action);
+          newState = reducer(newState, action); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         }
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
-      update = update.next;
+      update = update.next; // 下一个update
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     } while (update !== null && update !== first);
+    // do while循环一直通过环形链表中的update一直更新newState
 
-    if (newBaseQueueLast === null) {
-      newBaseState = newState;
+    if (newBaseQueueLast === null) { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      newBaseState = newState; // 新的基础状态
     } else {
       newBaseQueueLast.next = (newBaseQueueFirst: any);
     }
 
     // Mark that the fiber performed work, but only if the new state is
     // different from the current state.
-    if (!is(newState, hook.memoizedState)) {
+    if (!is(newState, hook.memoizedState)) { // Object.is算法是否一致 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       markWorkInProgressReceivedUpdate();
     }
 
-    hook.memoizedState = newState;
-    hook.baseState = newBaseState;
-    hook.baseQueue = newBaseQueueLast;
+    // 更新workInProgress上的hook对象身上的属性
+    hook.memoizedState = newState; // 1
+    hook.baseState = newBaseState; // 1
 
-    queue.lastRenderedState = newState;
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    hook.baseQueue = newBaseQueueLast; // null // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    // 更新queue上的上一次渲染的状态
+    queue.lastRenderedState = newState; // 1
   }
 
   if (baseQueue === null) {
@@ -1060,7 +1101,9 @@ function updateReducer<S, I, A>(
     queue.lanes = NoLanes;
   }
 
+  // 依然是queue上的dispatch函数 - 没有变化过 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   const dispatch: Dispatch<A> = (queue.dispatch: any);
+
   return [hook.memoizedState, dispatch];
 }
 
@@ -1656,37 +1699,74 @@ function forceStoreRerender(fiber) {
   }
 }
 
+// 挂载状态 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function mountState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
-  const hook = mountWorkInProgressHook();
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  /* 
+  // 准备hook对象
+  const hook: Hook = {
+    memoizedState: null, // hook中的上一次状态
+
+    baseState: null, // hook中的基础状态
+    baseQueue: null, // hook中的基础queue
+    queue: null, // hook中的queue
+
+    next: null, // hook对象的next
+  };
+  */
+  const hook = mountWorkInProgressHook(); // 挂载wip hook // ++++++++++++++++++++++++++++++++++++++++++++++++
   if (typeof initialState === 'function') {
     // $FlowFixMe: Flow doesn't like mixed types
-    initialState = initialState();
+    initialState = initialState(); // 是函数直接执行函数得到初始化状态 // +++++++++++++++++++++++++++++++++++++
   }
-  hook.memoizedState = hook.baseState = initialState;
+  // hook的上一次状态 - 基础状态都设置为初始化状态
+  hook.memoizedState = hook.baseState = initialState; // ++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // 准备queue对象
   const queue: UpdateQueue<S, BasicStateAction<S>> = {
     pending: null,
-    lanes: NoLanes,
+    lanes: NoLanes, // 0
     dispatch: null,
-    lastRenderedReducer: basicStateReducer,
-    lastRenderedState: (initialState: any),
+    lastRenderedReducer: basicStateReducer, // 上一次渲染reducer为基础状态reducer
+    lastRenderedState: (initialState: any), // 上一次渲染状态为初始化状态
   };
-  hook.queue = queue;
+  hook.queue = queue; // 放到hook的queue上
+
+  // 准备dispatch函数
   const dispatch: Dispatch<
     BasicStateAction<S>,
-  > = (queue.dispatch = (dispatchSetState.bind(
+  > = (queue.dispatch = (dispatchSetState.bind( // 实际是dispatchSetState函数
     null,
-    currentlyRenderingFiber,
-    queue,
-  ): any));
-  return [hook.memoizedState, dispatch];
+    currentlyRenderingFiber, // 绑定当前正在渲染中的fiber
+    queue, // 绑定当前创建的queue对象
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  ): any)); // 一直绑定的fiber都是初次挂载右树创建的这个fiber，queue也是那时在这里创建的queue对象。+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // dispatchSetState函数绑定的fiber一直都是右边这棵树中的fiber节点
+  // 而queue也是在此期间如上面创建好后的queue对象
+  // 一直没有变化过
+  /* 
+  FiberRootNode
+   |
+   |current
+   |
+  \ /
+  FiberNode  <--alternate-->  FiberNode（workInProgress）
+  */
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+  return [hook.memoizedState, dispatch]; // 返回数组
 }
 
+// 更新状态函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
-  return updateReducer(basicStateReducer, (initialState: any));
+  return updateReducer(basicStateReducer, (initialState: any)); // 基础状态reducer - 初始化状态
 }
 
 function rerenderState<S>(
@@ -2444,6 +2524,7 @@ function dispatchReducerAction<S, A>(
   markUpdateInDevTools(fiber, lane, action);
 }
 
+// 派发设置状态 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function dispatchSetState<S, A>(
   fiber: Fiber,
   queue: UpdateQueue<S, A>,
@@ -2459,28 +2540,30 @@ function dispatchSetState<S, A>(
     }
   }
 
-  const lane = requestUpdateLane(fiber);
+  const lane = requestUpdateLane(fiber); // 请求更新车道 // 1
 
+  // 准备update对象
   const update: Update<S, A> = {
     lane,
-    action,
-    hasEagerState: false,
-    eagerState: null,
-    next: (null: any),
+    action, // action参数
+    hasEagerState: false, // 是否有急切的状态
+    eagerState: null, // 急切的状态
+    next: (null: any), // 下一个
   };
 
+  // 是否为渲染阶段的更新
   if (isRenderPhaseUpdate(fiber)) {
     enqueueRenderPhaseUpdate(queue, update);
   } else {
-    const alternate = fiber.alternate;
+    const alternate = fiber.alternate; // 取出它的alternate属性
     if (
-      fiber.lanes === NoLanes &&
+      fiber.lanes === NoLanes /** 0 | 1 */ &&
       (alternate === null || alternate.lanes === NoLanes)
     ) {
       // The queue is currently empty, which means we can eagerly compute the
       // next state before entering the render phase. If the new state is the
       // same as the current state, we may be able to bail out entirely.
-      const lastRenderedReducer = queue.lastRenderedReducer;
+      const lastRenderedReducer = queue.lastRenderedReducer; // basicStateReducer
       if (lastRenderedReducer !== null) {
         let prevDispatcher;
         if (__DEV__) {
@@ -2488,22 +2571,22 @@ function dispatchSetState<S, A>(
           ReactCurrentDispatcher.current = InvalidNestedHooksDispatcherOnUpdateInDEV;
         }
         try {
-          const currentState: S = (queue.lastRenderedState: any);
-          const eagerState = lastRenderedReducer(currentState, action);
+          const currentState: S = (queue.lastRenderedState: any); // 取出queue中上一次渲染的状态
+          const eagerState = lastRenderedReducer(currentState, action); // 执行basicStateReducer函数 - 得到急切的状态
           // Stash the eagerly computed state, and the reducer used to compute
           // it, on the update object. If the reducer hasn't changed by the
           // time we enter the render phase, then the eager state can be used
           // without calling the reducer again.
-          update.hasEagerState = true;
-          update.eagerState = eagerState;
-          if (is(eagerState, currentState)) {
+          update.hasEagerState = true; /// 标记update对象
+          update.eagerState = eagerState; // 赋值
+          if (is(eagerState, currentState)) { // Object.is算法是否相等
             // Fast path. We can bail out without scheduling React to re-render.
             // It's still possible that we'll need to rebase this update later,
             // if the component re-renders for a different reason and by that
             // time the reducer has changed.
             // TODO: Do we still need to entangle transitions in this case?
             enqueueConcurrentHookUpdateAndEagerlyBailout(fiber, queue, update);
-            return;
+            return; // 相等的那么直接返回
           }
         } catch (error) {
           // Suppress the error. It will throw again in the render phase.
@@ -2515,10 +2598,11 @@ function dispatchSetState<S, A>(
       }
     }
 
+    // 入队列并发hook更新
     const root = enqueueConcurrentHookUpdate(fiber, queue, update, lane);
     if (root !== null) {
-      const eventTime = requestEventTime();
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+      const eventTime = requestEventTime(); // 请求事件事件
+      scheduleUpdateOnFiber(root, fiber, lane, eventTime); // 在fiber上调度更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
       entangleTransitionUpdate(root, queue, lane);
     }
   }
@@ -2734,10 +2818,10 @@ if (enableUseEventHook) {
   (HooksDispatcherOnRerender: Dispatcher).useEvent = updateEvent;
 }
 
-let HooksDispatcherOnMountInDEV: Dispatcher | null = null;
+let HooksDispatcherOnMountInDEV: Dispatcher | null = null; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 let HooksDispatcherOnMountWithHookTypesInDEV: Dispatcher | null = null;
-let HooksDispatcherOnUpdateInDEV: Dispatcher | null = null;
-let HooksDispatcherOnRerenderInDEV: Dispatcher | null = null;
+let HooksDispatcherOnUpdateInDEV: Dispatcher | null = null; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+let HooksDispatcherOnRerenderInDEV: Dispatcher | null = null; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++==
 let InvalidNestedHooksDispatcherOnMountInDEV: Dispatcher | null = null;
 let InvalidNestedHooksDispatcherOnUpdateInDEV: Dispatcher | null = null;
 let InvalidNestedHooksDispatcherOnRerenderInDEV: Dispatcher | null = null;
@@ -2761,6 +2845,7 @@ if (__DEV__) {
     );
   };
 
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   HooksDispatcherOnMountInDEV = {
     readContext<T>(context: ReactContext<T>): T {
       return readContext(context);
@@ -2845,15 +2930,17 @@ if (__DEV__) {
       mountHookTypesDev();
       return mountRef(initialValue);
     },
+    // OnMount期间的useState // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     useState<S>(
       initialState: (() => S) | S,
     ): [S, Dispatch<BasicStateAction<S>>] {
       currentHookNameInDev = 'useState';
       mountHookTypesDev();
       const prevDispatcher = ReactCurrentDispatcher.current;
-      ReactCurrentDispatcher.current = InvalidNestedHooksDispatcherOnMountInDEV;
+      ReactCurrentDispatcher.current = InvalidNestedHooksDispatcherOnMountInDEV; // ++++++++++++++++++++++++++++++++++++++++++
       try {
-        return mountState(initialState);
+        // 执行挂载状态函数
+        return mountState(initialState); // +++++++++++++++++++++++++++++++++++++++++
       } finally {
         ReactCurrentDispatcher.current = prevDispatcher;
       }
@@ -3081,6 +3168,7 @@ if (__DEV__) {
     };
   }
 
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   HooksDispatcherOnUpdateInDEV = {
     readContext<T>(context: ReactContext<T>): T {
       return readContext(context);
@@ -3159,6 +3247,7 @@ if (__DEV__) {
       updateHookTypesDev();
       return updateRef(initialValue);
     },
+    // OnUpdate期间的useState // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     useState<S>(
       initialState: (() => S) | S,
     ): [S, Dispatch<BasicStateAction<S>>] {
@@ -3167,7 +3256,7 @@ if (__DEV__) {
       const prevDispatcher = ReactCurrentDispatcher.current;
       ReactCurrentDispatcher.current = InvalidNestedHooksDispatcherOnUpdateInDEV;
       try {
-        return updateState(initialState);
+        return updateState(initialState); // 执行更新状态函数 // +++++++++++++++++++++++++++++++++++++++++++++++++++=
       } finally {
         ReactCurrentDispatcher.current = prevDispatcher;
       }

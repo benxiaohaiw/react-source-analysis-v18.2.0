@@ -3974,20 +3974,23 @@ function beginWork(
       // This may be unset if the props are determined to be equal later (memo).
       didReceiveUpdate = true;
     } else {
+      // props和遗留context都没有更改。检查是否有挂起的更新或context更改。// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // Neither props nor legacy context changes. Check if there's a pending
       // update or context change.
-      const hasScheduledUpdateOrContext = checkScheduledUpdateOrContext(
+      // 是否有调度更新或者上下文 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      const hasScheduledUpdateOrContext = checkScheduledUpdateOrContext( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         current,
         renderLanes,
       );
       if (
-        !hasScheduledUpdateOrContext &&
+        !hasScheduledUpdateOrContext && // !false
         // If this is the second pass of an error or suspense boundary, there
         // may not be work scheduled on `current`, so we check for this flag.
-        (workInProgress.flags & DidCapture) === NoFlags
+        (workInProgress.flags & DidCapture) === NoFlags // true
       ) {
         // No pending updates or context. Bail out now.
         didReceiveUpdate = false;
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         return attemptEarlyBailoutIfNoScheduledUpdate( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
           current,
           workInProgress,
