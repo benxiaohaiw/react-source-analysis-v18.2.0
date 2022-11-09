@@ -263,6 +263,7 @@ export function createRoot(
   
   // react-dom-bindings/src/events/DOMPluginEventSystem.js
   listenToAllSupportedEvents(rootContainerElement); // #root节点做事件委托，也就是在其身上监听所有支持的事件
+  // 监听所有支持的事件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   return new ReactDOMRoot(root); // 把FiberRootNode传入进去，存储它的实例的_internalRoot属性上

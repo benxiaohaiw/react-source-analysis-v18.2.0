@@ -84,25 +84,29 @@ export function createEventListenerWrapper(
   );
 }
 
+// 创建带有优先级的事件监听器包裹函数
 export function createEventListenerWrapperWithPriority(
   targetContainer: EventTarget,
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,
 ): Function {
-  const eventPriority = getEventPriority(domEventName);
+  // 根据dom事件名字获取事件优先级
+  // click对应DiscreteEventPriority，那么它对应的listenerWrapper就是dispatchDiscreteEvent函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  const eventPriority = getEventPriority(domEventName); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   let listenerWrapper;
   switch (eventPriority) {
-    case DiscreteEventPriority:
-      listenerWrapper = dispatchDiscreteEvent;
+    case DiscreteEventPriority: // 离散事件优先级
+      listenerWrapper = dispatchDiscreteEvent; // 派发离散事件函数
       break;
-    case ContinuousEventPriority:
-      listenerWrapper = dispatchContinuousEvent;
+    case ContinuousEventPriority: // 连续事件优先级
+      listenerWrapper = dispatchContinuousEvent; // 派发连续事件函数
       break;
-    case DefaultEventPriority:
+    case DefaultEventPriority: // 默认事件优先级
     default:
-      listenerWrapper = dispatchEvent;
+      listenerWrapper = dispatchEvent; // 派发事件函数
       break;
   }
+  // 监听器包裹函数再次执行bind函数 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   return listenerWrapper.bind(
     null,
     domEventName,
@@ -111,18 +115,19 @@ export function createEventListenerWrapperWithPriority(
   );
 }
 
+// 派发离散事件函数
 function dispatchDiscreteEvent(
   domEventName,
   eventSystemFlags,
   container,
   nativeEvent,
 ) {
-  const previousPriority = getCurrentUpdatePriority();
+  const previousPriority = getCurrentUpdatePriority(); // 获取当前更新优先级
   const prevTransition = ReactCurrentBatchConfig.transition;
   ReactCurrentBatchConfig.transition = null;
   try {
-    setCurrentUpdatePriority(DiscreteEventPriority);
-    dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
+    setCurrentUpdatePriority(DiscreteEventPriority); // 设置当前更新优先级为【离散事件优先级】 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+    dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent); // 派发事件 // +++++++++++++++++++++++++++++++++++++++++++
   } finally {
     setCurrentUpdatePriority(previousPriority);
     ReactCurrentBatchConfig.transition = prevTransition;
@@ -147,6 +152,7 @@ function dispatchContinuousEvent(
   }
 }
 
+// 派发事件
 export function dispatchEvent(
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,
@@ -164,6 +170,7 @@ export function dispatchEvent(
       nativeEvent,
     );
   } else {
+    // 派发原始事件 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     dispatchEventOriginal(
       domEventName,
       eventSystemFlags,
@@ -173,7 +180,8 @@ export function dispatchEvent(
   }
 }
 
-function dispatchEventOriginal(
+// 派发原始事件
+function dispatchEventOriginal( // -> dispatchEventForPluginEventSystem // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,
   targetContainer: EventTarget,
@@ -408,11 +416,12 @@ export function findInstanceBlockingEvent(
   return null;
 }
 
+// 根据dom事件名获取对应的事件优先级
 export function getEventPriority(domEventName: DOMEventName): EventPriority {
   switch (domEventName) {
     // Used by SimpleEventPlugin:
     case 'cancel':
-    case 'click':
+    case 'click': // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case 'close':
     case 'contextmenu':
     case 'copy':
@@ -468,7 +477,7 @@ export function getEventPriority(domEventName: DOMEventName): EventPriority {
     case 'popstate':
     case 'select':
     case 'selectstart':
-      return DiscreteEventPriority;
+      return DiscreteEventPriority; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case 'drag':
     case 'dragenter':
     case 'dragexit':
@@ -491,7 +500,7 @@ export function getEventPriority(domEventName: DOMEventName): EventPriority {
     case 'pointerenter':
     case 'pointerleave':
       return ContinuousEventPriority;
-    case 'message': {
+    case 'message': { // message事件 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++==
       // We might be in the Scheduler callback.
       // Eventually this mechanism will be replaced by a check
       // of the current priority on the native scheduler.
@@ -511,7 +520,9 @@ export function getEventPriority(domEventName: DOMEventName): EventPriority {
           return DefaultEventPriority;
       }
     }
-    default:
-      return DefaultEventPriority;
+
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    default: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      return DefaultEventPriority; // 默认事件优先级 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 }

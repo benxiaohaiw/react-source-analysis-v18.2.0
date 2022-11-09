@@ -93,6 +93,7 @@ ChangeEventPlugin.registerEvents();
 SelectEventPlugin.registerEvents();
 BeforeInputEventPlugin.registerEvents();
 
+// 提取事件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
 function extractEvents(
   dispatchQueue: DispatchQueue,
   domEventName: DOMEventName,
@@ -221,6 +222,7 @@ export const nonDelegatedEvents: Set<DOMEventName> = new Set([
   ...mediaEventTypes,
 ]);
 
+// 执行派发 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function executeDispatch(
   event: ReactSyntheticEvent,
   listener: Function,
@@ -228,51 +230,57 @@ function executeDispatch(
 ): void {
   const type = event.type || 'unknown-event';
   event.currentTarget = currentTarget;
-  invokeGuardedCallbackAndCatchFirstError(type, listener, undefined, event);
+  invokeGuardedCallbackAndCatchFirstError(type, listener, undefined, event); // 调用listener函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   event.currentTarget = null;
 }
 
+// 有顺序的处理派发队列中每一项 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function processDispatchQueueItemsInOrder(
   event: ReactSyntheticEvent,
   dispatchListeners: Array<DispatchListener>,
   inCapturePhase: boolean,
 ): void {
   let previousInstance;
-  if (inCapturePhase) {
-    for (let i = dispatchListeners.length - 1; i >= 0; i--) {
+  if (inCapturePhase) { // 在捕获阶段
+    for (let i = dispatchListeners.length - 1; i >= 0; i--) { // 倒序遍历
       const {instance, currentTarget, listener} = dispatchListeners[i];
       if (instance !== previousInstance && event.isPropagationStopped()) {
         return;
       }
-      executeDispatch(event, listener, currentTarget);
+      executeDispatch(event, listener, currentTarget); // 执行派发
       previousInstance = instance;
     }
-  } else {
-    for (let i = 0; i < dispatchListeners.length; i++) {
+  } else { // 不是捕获阶段
+    for (let i = 0; i < dispatchListeners.length; i++) { // 正序遍历
       const {instance, currentTarget, listener} = dispatchListeners[i];
       if (instance !== previousInstance && event.isPropagationStopped()) {
         return;
       }
-      executeDispatch(event, listener, currentTarget);
+      executeDispatch(event, listener, currentTarget); // 执行派发
       previousInstance = instance;
     }
   }
 }
 
+// 处理派发队列 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function processDispatchQueue(
   dispatchQueue: DispatchQueue,
   eventSystemFlags: EventSystemFlags,
 ): void {
+  // 是否为捕获阶段
   const inCapturePhase = (eventSystemFlags & IS_CAPTURE_PHASE) !== 0;
+  // 直接遍历派发队列 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   for (let i = 0; i < dispatchQueue.length; i++) {
     const {event, listeners} = dispatchQueue[i];
-    processDispatchQueueItemsInOrder(event, listeners, inCapturePhase);
+    // 顺序处理派发队列中的每一项
+    processDispatchQueueItemsInOrder(event, listeners, inCapturePhase); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //  event system doesn't use pooling.
   }
   // This would be a good time to rethrow if any of the event handlers threw.
   rethrowCaughtError();
 }
 
+// 为插件派发事件
 function dispatchEventsForPlugins(
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,
@@ -280,9 +288,12 @@ function dispatchEventsForPlugins(
   targetInst: null | Fiber,
   targetContainer: EventTarget,
 ): void {
+  // 获取事件目标
   const nativeEventTarget = getEventTarget(nativeEvent);
+  // 准备派发队列
   const dispatchQueue: DispatchQueue = [];
-  extractEvents(
+  // 提取事件
+  extractEvents( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     dispatchQueue,
     domEventName,
     targetInst,
@@ -291,7 +302,8 @@ function dispatchEventsForPlugins(
     eventSystemFlags,
     targetContainer,
   );
-  processDispatchQueue(dispatchQueue, eventSystemFlags);
+  // 处理派发队列
+  processDispatchQueue(dispatchQueue, eventSystemFlags); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
 }
 
 export function listenToNonDelegatedEvent(
@@ -324,6 +336,7 @@ export function listenToNonDelegatedEvent(
   }
 }
 
+// 监听原生事件
 export function listenToNativeEvent(
   domEventName: DOMEventName,
   isCapturePhaseListener: boolean,
@@ -341,8 +354,10 @@ export function listenToNativeEvent(
 
   let eventSystemFlags = 0;
   if (isCapturePhaseListener) {
-    eventSystemFlags |= IS_CAPTURE_PHASE;
+    eventSystemFlags |= IS_CAPTURE_PHASE; // 是否为捕获阶段
   }
+
+  // 增加受限制的事件监听器 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=++++++++++++++++++++++++++++++++++
   addTrappedEventListener(
     target,
     domEventName,
@@ -384,9 +399,10 @@ const listeningMarker =
     .toString(36)
     .slice(2);
 
+// 监听所有支持的事件
 export function listenToAllSupportedEvents(rootContainerElement: EventTarget) {
-  if (!(rootContainerElement: any)[listeningMarker]) {
-    (rootContainerElement: any)[listeningMarker] = true;
+  if (!(rootContainerElement: any)[listeningMarker]) { // 没有
+    (rootContainerElement: any)[listeningMarker] = true; // 标记一下
     allNativeEvents.forEach(domEventName => {
       // We handle selectionchange separately because it
       // doesn't bubble and needs to be on the document.
@@ -394,6 +410,9 @@ export function listenToAllSupportedEvents(rootContainerElement: EventTarget) {
         if (!nonDelegatedEvents.has(domEventName)) {
           listenToNativeEvent(domEventName, false, rootContainerElement);
         }
+        /* 
+        listenToNativeEvent: 监听原生事件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+        */
         listenToNativeEvent(domEventName, true, rootContainerElement);
       }
     });
@@ -412,6 +431,7 @@ export function listenToAllSupportedEvents(rootContainerElement: EventTarget) {
   }
 }
 
+// 增加受限制的事件监听器
 function addTrappedEventListener(
   targetContainer: EventTarget,
   domEventName: DOMEventName,
@@ -419,7 +439,8 @@ function addTrappedEventListener(
   isCapturePhaseListener: boolean,
   isDeferredListenerForLegacyFBSupport?: boolean,
 ) {
-  let listener = createEventListenerWrapperWithPriority(
+  // 创建带有优先级的事件监听器包裹函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  let listener = createEventListenerWrapperWithPriority( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     targetContainer,
     domEventName,
     eventSystemFlags,
@@ -534,6 +555,7 @@ function isMatchingRootContainer(
   );
 }
 
+// 为插件事件系统派发事件
 export function dispatchEventForPluginEventSystem(
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,
@@ -639,8 +661,10 @@ export function dispatchEventForPluginEventSystem(
     }
   }
 
+  // ./ReactDOMUpdateBatching.js
+  // 执行批量更新函数
   batchedUpdates(() =>
-    dispatchEventsForPlugins(
+    dispatchEventsForPlugins( // 为插件派发事件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++=
       domEventName,
       eventSystemFlags,
       nativeEvent,

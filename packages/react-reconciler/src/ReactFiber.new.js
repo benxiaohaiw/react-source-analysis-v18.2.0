@@ -257,9 +257,9 @@ export function resolveLazyComponentTag(Component: Function): WorkTag {
   return IndeterminateComponent;
 }
 
-// 这用于创建一个备用的fiber以进行工作
+// 这用于创建一个备用的fiber以进行工作 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // This is used to create an alternate fiber to do work on.
-export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
+export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // 获取current.alternate属性
   let workInProgress = current.alternate; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -291,6 +291,7 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
 
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++===
     // 相互指向通过各自的alternate属性
+    // 建立关系 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     workInProgress.alternate = current;
     current.alternate = workInProgress;
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -299,9 +300,11 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
     // Needed because Blocks store data on type.
     workInProgress.type = current.type;
 
+    // 重置 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // We already have an alternate.
     // Reset the effect tag.
-    workInProgress.flags = NoFlags;
+    workInProgress.flags = NoFlags; // 重置flags // ++++++++++++++++++++++++++++++++++++++++++++++++++
 
     // The effects are no longer valid.
     workInProgress.subtreeFlags = NoFlags; // 子树标记 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -317,15 +320,21 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
     }
   }
 
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // 复用current的 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
 
+  // 【重置除静态effect外的所有effect】。 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 静态effect并不特定于渲染。
   // Reset all effects except static ones.
   // Static effects are not specific to a render.
-  workInProgress.flags = current.flags & StaticMask;
-  workInProgress.childLanes = current.childLanes;
-  workInProgress.lanes = current.lanes;
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  workInProgress.flags = current.flags & StaticMask; // & StaticMask +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  workInProgress.childLanes = current.childLanes; // +++++++++++++++++++++++++++++++++++++++++++
+  workInProgress.lanes = current.lanes; // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  workInProgress.child = current.child;
+  workInProgress.child = current.child; // +++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
   workInProgress.memoizedProps = current.memoizedProps;
   workInProgress.memoizedState = current.memoizedState;
   workInProgress.updateQueue = current.updateQueue;

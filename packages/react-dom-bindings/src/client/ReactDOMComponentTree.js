@@ -220,11 +220,12 @@ export function getFiberCurrentPropsFromNode(
   return (node: any)[internalPropsKey] || null;
 }
 
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function updateFiberProps(
   node: Instance | TextInstance | SuspenseInstance,
   props: Props,
 ): void {
-  (node: any)[internalPropsKey] = props;
+  (node: any)[internalPropsKey] = props; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 export function getEventListenerSet(node: EventTarget): Set<string> {

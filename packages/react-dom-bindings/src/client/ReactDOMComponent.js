@@ -607,6 +607,8 @@ export function setInitialProperties(
   }
 }
 
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 计算两个对象之间的差异。 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // Calculate the diff between the two objects.
 export function diffProperties(
   domElement: Element,
@@ -800,6 +802,7 @@ export function diffProperties(
   return updatePayload;
 }
 
+// 应用这个diff // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // Apply the diff.
 export function updateProperties(
   domElement: Element,
@@ -821,6 +824,8 @@ export function updateProperties(
 
   const wasCustomComponentTag = isCustomComponent(tag, lastRawProps);
   const isCustomComponentTag = isCustomComponent(tag, nextRawProps);
+
+  // 应用这个diff // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Apply the diff.
   updateDOMProperties(
     domElement,

@@ -275,15 +275,17 @@ function safelyCallComponentWillUnmount(
   }
 }
 
+// 安全的附加ref // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // Capture errors so they don't interrupt mounting.
 function safelyAttachRef(current: Fiber, nearestMountedAncestor: Fiber | null) {
   try {
-    commitAttachRef(current);
+    commitAttachRef(current); // 提交附加ref // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   } catch (error) {
     captureCommitPhaseError(current, nearestMountedAncestor, error);
   }
 }
 
+// 安全的分离ref // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function safelyDetachRef(current: Fiber, nearestMountedAncestor: Fiber | null) {
   const ref = current.ref;
   if (ref !== null) {
@@ -298,7 +300,7 @@ function safelyDetachRef(current: Fiber, nearestMountedAncestor: Fiber | null) {
             recordLayoutEffectDuration(current);
           }
         } else {
-          retVal = ref(null);
+          retVal = ref(null); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         }
       } catch (error) {
         captureCommitPhaseError(current, nearestMountedAncestor, error);
@@ -314,7 +316,7 @@ function safelyDetachRef(current: Fiber, nearestMountedAncestor: Fiber | null) {
       }
     } else {
       // $FlowFixMe unable to narrow type to RefObject
-      ref.current = null;
+      ref.current = null; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
   }
 }
@@ -1554,19 +1556,20 @@ function hideOrUnhideAllChildren(finishedWork, isHidden) {
   }
 }
 
+// 提交附加ref // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function commitAttachRef(finishedWork: Fiber) {
   const ref = finishedWork.ref;
   if (ref !== null) {
-    const instance = finishedWork.stateNode;
+    const instance = finishedWork.stateNode; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     let instanceToUse;
     switch (finishedWork.tag) {
       case HostResource:
       case HostSingleton:
       case HostComponent:
-        instanceToUse = getPublicInstance(instance);
+        instanceToUse = getPublicInstance(instance); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         break;
       default:
-        instanceToUse = instance;
+        instanceToUse = instance; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
     // Moved outside to ensure DCE works with this flag
     if (enableScopeAPI && finishedWork.tag === ScopeComponent) {
@@ -1582,7 +1585,7 @@ function commitAttachRef(finishedWork: Fiber) {
           recordLayoutEffectDuration(finishedWork);
         }
       } else {
-        retVal = ref(instanceToUse);
+        retVal = ref(instanceToUse); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
       if (__DEV__) {
         if (typeof retVal === 'function') {
@@ -1605,7 +1608,7 @@ function commitAttachRef(finishedWork: Fiber) {
       }
 
       // $FlowFixMe unable to narrow type to the non-function case
-      ref.current = instanceToUse;
+      ref.current = instanceToUse; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
   }
 }
@@ -2500,20 +2503,29 @@ export function commitMutationEffects(
   inProgressRoot = root;
 
   setCurrentDebugFiberInDEV(finishedWork);
+
+
+
   // 在fiber上进行 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   commitMutationEffectsOnFiber(finishedWork, root, committedLanes);
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  
+  
+  
   setCurrentDebugFiberInDEV(finishedWork);
 
   inProgressLanes = null;
   inProgressRoot = null;
 }
 
-// 递归迭代 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 递归迭代 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function recursivelyTraverseMutationEffects(
   root: FiberRoot,
   parentFiber: Fiber,
   lanes: Lanes,
 ) {
+
+  // 可以在任何类型的fiber上调度删除effect。它们需要在触发子effect之前发生。
   // Deletions effects can be scheduled on any fiber type. They need to happen
   // before the children effects hae fired.
   const deletions = parentFiber.deletions; // 是否有需要删除的
@@ -2542,7 +2554,7 @@ function recursivelyTraverseMutationEffects(
 
   /* 
   packages/react-reconciler/src/ReactFiberFlags.js
-  export const MutationMask = // 12854
+  export const MutationMask = // 12854 -> (12854).toString(2) -> '11001000110110'
     Placement | // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
     Update |
     ChildDeletion |
@@ -2559,12 +2571,22 @@ function recursivelyTraverseMutationEffects(
   // 在packages/react-reconciler/src/ReactFiberCompleteWork.new.js下的completeWork -> case HostRoot: -> bubbleProperties它会让
   // 当前的FiberRootNode.current.alternate的subtreeFlags |= child.flags;
 
+  
+  // &与运算符是两个为1才是1，一个为0就为0
+  /* 
+  | Update（completeWork）再进行| PerformWork（packages/react-reconciler/src/ReactFiberBeginWork.new.js -> updateFunctionComponent） -> 100 | 001 -> 5
+  (5).toString(2) -> 101
+  */
   if (parentFiber.subtreeFlags & MutationMask) { // 它的subtreeFlags是否有MutationMask标记
     let child = parentFiber.child;
     while (child !== null) {
       setCurrentDebugFiberInDEV(child);
+      
       // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       commitMutationEffectsOnFiber(child, root, lanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
       child = child.sibling;
     }
   }
@@ -2597,11 +2619,13 @@ function commitMutationEffectsOnFiber(
 
       if (flags & Update) {
         try {
+          // 
           commitHookEffectListUnmount(
             HookInsertion | HookHasEffect,
             finishedWork,
             finishedWork.return,
           );
+          
           commitHookEffectListMount(
             HookInsertion | HookHasEffect,
             finishedWork,
@@ -2709,8 +2733,9 @@ function commitMutationEffectsOnFiber(
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
       commitReconciliationEffects(finishedWork);
 
-      if (flags & Ref) {
+      if (flags & Ref) { // Ref标记
         if (current !== null) {
+          // 安全的分离ref // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
           safelyDetachRef(current, current.return);
         }
       }
@@ -2730,8 +2755,10 @@ function commitMutationEffectsOnFiber(
           }
         }
 
+        // 属性相关的更新操作 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         if (flags & Update) {
-          const instance: Instance = finishedWork.stateNode;
+          const instance: Instance = finishedWork.stateNode; // 真实dom元素
           if (instance != null) {
             // Commit the work prepared earlier.
             const newProps = finishedWork.memoizedProps;
@@ -2742,10 +2769,16 @@ function commitMutationEffectsOnFiber(
               current !== null ? current.memoizedProps : newProps;
             const type = finishedWork.type;
             // TODO: Type the updateQueue to be specific to host components.
-            const updatePayload: null | UpdatePayload = (finishedWork.updateQueue: any);
-            finishedWork.updateQueue = null;
+            const updatePayload: null | UpdatePayload = (finishedWork.updateQueue: any); // 取出在render阶段中completeWork时updateHostComponent时diff属性的结果
+
+            finishedWork.updateQueue = null; // 置为null // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            
             if (updatePayload !== null) {
               try {
+
+
+                // packages/react-dom-bindings/src/client/ReactDOMHostConfig.js
+                // 提交更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 commitUpdate(
                   instance,
                   updatePayload,
@@ -2753,7 +2786,9 @@ function commitMutationEffectsOnFiber(
                   oldProps,
                   newProps,
                   finishedWork,
-                );
+                ); // 就是更新dom属性 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
               } catch (error) {
                 captureCommitPhaseError(
                   finishedWork,
@@ -2769,9 +2804,13 @@ function commitMutationEffectsOnFiber(
     }
     case HostText: {
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
-      commitReconciliationEffects(finishedWork);
 
-      if (flags & Update) {
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      commitReconciliationEffects(finishedWork);
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      if (flags & Update) { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         if (supportsMutation) {
           if (finishedWork.stateNode === null) {
             throw new Error(
@@ -2789,7 +2828,17 @@ function commitMutationEffectsOnFiber(
             current !== null ? current.memoizedProps : newText;
 
           try {
-            commitTextUpdate(textInstance, oldText, newText);
+
+
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            commitTextUpdate(textInstance, oldText, newText); // 提交文本更新 // +++++++++++++++++++++++
+            // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            /* 
+            packages/react-dom-bindings/src/client/ReactDOMHostConfig.js
+            commitTextUpdate -> textInstance.nodeValue = newText;
+            */
+
+
           } catch (error) {
             captureCommitPhaseError(finishedWork, finishedWork.return, error);
           }

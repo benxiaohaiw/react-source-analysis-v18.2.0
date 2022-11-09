@@ -21,17 +21,24 @@ import {
 
 export opaque type EventPriority = Lane;
 
-export const DiscreteEventPriority: EventPriority = SyncLane;
-export const ContinuousEventPriority: EventPriority = InputContinuousLane;
-export const DefaultEventPriority: EventPriority = DefaultLane;
-export const IdleEventPriority: EventPriority = IdleLane;
+// 离散事件优先级
+export const DiscreteEventPriority: EventPriority = SyncLane; // 同步车道 // 1 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 连续事件优先级
+export const ContinuousEventPriority: EventPriority = InputContinuousLane; // 4
+// 默认事件优先级
+export const DefaultEventPriority: EventPriority = DefaultLane; // 16
+// 空闲事件优先级
+export const IdleEventPriority: EventPriority = IdleLane; // 536870912
 
-let currentUpdatePriority: EventPriority = NoLane;
+// 当前更新优先级
+let currentUpdatePriority: EventPriority = NoLane; // 默认为NoLane
 
+// 获取当前更新优先级
 export function getCurrentUpdatePriority(): EventPriority {
   return currentUpdatePriority;
 }
 
+// 设置当前更新优先级
 export function setCurrentUpdatePriority(newPriority: EventPriority) {
   currentUpdatePriority = newPriority;
 }

@@ -304,13 +304,14 @@ if (__DEV__) {
   didWarnAboutDefaultPropsOnFunctionComponent = {};
 }
 
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function reconcileChildren( // _+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   current: Fiber | null,
   workInProgress: Fiber,
   nextChildren: any,
   renderLanes: Lanes,
 ) {
+  // current为null那么直接mount // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (current === null) { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // If this is a fresh new component that hasn't been rendered yet, we
     // won't update its child set by applying minimal side-effects. Instead,
@@ -323,6 +324,7 @@ export function reconcileChildren( // _+++++++++++++++++++++++++++++++++++++++++
       renderLanes,
     );
   } else {
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // If the current child is the same as the work in progress, it means that
     // we haven't yet started any work on these children. Therefore, we use
     // the clone algorithm to create a copy of all the current children.
@@ -1067,6 +1069,7 @@ function updateProfiler(
   return workInProgress.child;
 }
 
+// 标记ref // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function markRef(current: Fiber | null, workInProgress: Fiber) {
   const ref = workInProgress.ref;
   if (
@@ -1079,7 +1082,7 @@ function markRef(current: Fiber | null, workInProgress: Fiber) {
   }
 }
 
-// 更新函数式组件
+// 更新函数式组件 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateFunctionComponent(
   current,
   workInProgress,
@@ -1118,14 +1121,21 @@ function updateFunctionComponent(
   if (__DEV__) {
     ReactCurrentOwner.current = workInProgress;
     setIsRendering(true);
-    nextChildren = renderWithHooks(
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 返回新的孩子（一个新的vnode树）
+    nextChildren = renderWithHooks( // 还是执行renderWithHooks函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       current,
       workInProgress,
       Component,
       nextProps,
       context,
       renderLanes,
-    );
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    ); // 注意：在renderWithHooks -> Component -> useState -> updateState -> updateReducer -> !is(newState, hook.memoizedState): markWorkInProgressReceivedUpdate -> 
+    // didReceiveUpdate: true
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     hasId = checkDidRenderIdHook();
     if (
       debugRenderPhaseSideEffectsForStrictMode &&
@@ -1162,18 +1172,30 @@ function updateFunctionComponent(
     markComponentRenderStopped();
   }
 
-  if (current !== null && !didReceiveUpdate) {
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (current !== null && !didReceiveUpdate) { // 这个如果为true则【直接说明了state是没有变化的】，那么直接不要进行下面的reconcileChildren操作了
+    // 而是直接抄近道，照着下面的逻辑进行执行运行 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     bailoutHooks(current, workInProgress, renderLanes);
-    return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
+    return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes); // +++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 这个函数简单的来讲就是检查wip的childLanes是否包含renderLanes
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 包含的话就直接让wip的child指向current的child的alternate（packages/react-reconciler/src/ReactChildFiber.new.js中的cloneChildFibers） // ++++++++++++++++++++++++++
+    // 如果不包含的话那么直接返回的是一个null
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
   if (getIsHydrating() && hasId) {
     pushMaterializedTreeId(workInProgress);
   }
 
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // react devTools会读取这个标记 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // React DevTools reads this flag.
-  workInProgress.flags |= PerformedWork;
+  workInProgress.flags |= PerformedWork; // 1 // App函数式组件的对应的当前的fiber的flags就会 |= PerformedWork: 1 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+  // 进行fiber间的diff // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   reconcileChildren(current, workInProgress, nextChildren, renderLanes); // ++++++++++++++++++++++++++++++++++++++++++++++++
   return workInProgress.child;
@@ -1566,8 +1588,8 @@ function mountHostRootWithoutHydrating(
   return workInProgress.child;
 }
 
-// 更新组件组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-function updateHostComponent(
+// 更新主机组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function updateHostComponent( // button
   current: Fiber | null,
   workInProgress: Fiber,
   renderLanes: Lanes,
@@ -1578,29 +1600,60 @@ function updateHostComponent(
     tryToClaimNextHydratableInstance(workInProgress);
   }
 
-  const type = workInProgress.type;
-  const nextProps = workInProgress.pendingProps;
-  const prevProps = current !== null ? current.memoizedProps : null;
+  const type = workInProgress.type; // 类型
+  const nextProps = workInProgress.pendingProps; // 待处理的属性 - 其实就是vnode的props // ++++++++++++++++++++++++++++++++++++++
+  const prevProps = current !== null ? current.memoizedProps : null; //current的上一次的属性
 
-  let nextChildren = nextProps.children;
+  let nextChildren = nextProps.children; // 待处理属性中的children
   const isDirectTextChild = shouldSetTextContent(type, nextProps);
   // 是否为直接文本孩子
+  
+  /* 
+  packages/react-dom-bindings/src/client/ReactDOMHostConfig.js
+  export function shouldSetTextContent(type: string, props: Props): boolean {
+    return (
+      type === 'textarea' ||
+      type === 'noscript' ||
+      typeof props.children === 'string' ||
+      typeof props.children === 'number' ||
+      (typeof props.dangerouslySetInnerHTML === 'object' &&
+        props.dangerouslySetInnerHTML !== null &&
+        props.dangerouslySetInnerHTML.__html != null)
+    );
+  }
+  */
 
-  if (isDirectTextChild) {
+  if (isDirectTextChild) { // 是直接文本孩子 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // We special case a direct text child of a host node. This is a common
     // case. We won't handle it as a reified child. We will instead handle
     // this in the host environment that also has access to this prop. That
     // avoids allocating another HostText fiber and traversing it.
     nextChildren = null;
-  } else if (prevProps !== null && shouldSetTextContent(type, prevProps)) {
+  } else if (prevProps !== null && shouldSetTextContent(type, prevProps)) { // 之前属性不为null 且 之前是直接文本孩子
     // If we're switching from a direct text child to a normal child, or to
     // empty, we need to schedule the text content to be reset.
-    workInProgress.flags |= ContentReset;
+    workInProgress.flags |= ContentReset; // 标记ContentReset // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
+  // 标记ref
   markRef(current, workInProgress);
+  /* 
+  function markRef(current: Fiber | null, workInProgress: Fiber) {
+  const ref = workInProgress.ref;
+  if (
+    (current === null && ref !== null) ||
+    (current !== null && current.ref !== ref)
+  ) {
+    // Schedule a Ref effect
+    workInProgress.flags |= Ref;
+    workInProgress.flags |= RefStatic;
+  }
+}
+  */
+
+
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+  reconcileChildren(current, workInProgress, nextChildren, renderLanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   return workInProgress.child;
 }
 
@@ -1657,7 +1710,8 @@ function updateHostText(current, workInProgress) {
   if (current === null) {
     tryToClaimNextHydratableInstance(workInProgress);
   }
-  // 这里没什么可做的。这是终端。我们将在之后立即执行完成步骤。
+  // ++++++++++++++++++++++++++++
+  // 这里没什么可做的。这是【终端】。我们将在之后立即执行完成步骤。 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Nothing to do here. This is terminal. We'll do the completion step
   // immediately after.
   return null; // 返回null // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -3697,16 +3751,21 @@ function remountFiber(
   }
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 检查调度更新或上下文 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function checkScheduledUpdateOrContext(
   current: Fiber,
   renderLanes: Lanes,
 ): boolean {
   // Before performing an early bailout, we must check if there are pending
   // updates or context.
-  const updateLanes = current.lanes;
-  if (includesSomeLane(updateLanes, renderLanes)) {
+  const updateLanes = current.lanes; // 取出current的lanes
+  if (includesSomeLane(updateLanes, renderLanes)) { // current的lanes是否包含这个renderLanes // +++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 包含则直接返回true // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     return true;
   }
+
+  // 没有挂起的更新，但是因为上下文是惰性传播的，所以我们需要在退出之前检查上下文更改。
   // No pending update, but because context is propagated lazily, we need
   // to check for a context change before we bail out.
   if (enableLazyContextPropagation) {
@@ -3715,9 +3774,12 @@ function checkScheduledUpdateOrContext(
       return true;
     }
   }
+
+  // 其它的一律返回false // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   return false;
 }
 
+// 如果没有调度更新试图较早的bail out // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function attemptEarlyBailoutIfNoScheduledUpdate(
   current: Fiber,
   workInProgress: Fiber,
@@ -3935,7 +3997,7 @@ function attemptEarlyBailoutIfNoScheduledUpdate(
   return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
-// 开始工作 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 开始工作 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function beginWork(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -3959,8 +4021,8 @@ function beginWork(
     }
   }
 
-  // 之后的更新期间
-  if (current !== null) {
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (current !== null) { // _++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     const oldProps = current.memoizedProps;
     const newProps = workInProgress.pendingProps;
 
@@ -3977,16 +4039,34 @@ function beginWork(
       // props和遗留context都没有更改。检查是否有挂起的更新或context更改。// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // Neither props nor legacy context changes. Check if there's a pending
       // update or context change.
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // 是否有调度更新或者上下文 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       const hasScheduledUpdateOrContext = checkScheduledUpdateOrContext( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        current,
+        current, // 举例：第一次mount时这里current的lanes是16 renderLanes也为16
+        // 在初次挂载完毕之后点击button这里current的lanes为0 renderLanes是为1的
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        /* 
+        当前的beginWork函数的下面以及renderWithHooks（在Component函数执行之前）都有这句代码，它会把wip的lanes置为0，要注意的！
+        workInProgress.lanes = NoLanes;
+        */
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        /// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         renderLanes,
       );
+      // 实际上是检查current的lanes是否包含renderLanes，包含则返回true，否则返回false // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // ！！！
+      // 注意在packages/react-reconciler/src/ReactFiberConcurrentUpdates.new.js中的enqueueUpdate（重点）以及finishQueueingConcurrentUpdates -> markUpdateLaneFromFiberToRoot（重点）
+      // 里面的逻辑！！！
+      // ！！！一定不要忘记这里面的逻辑 // ++++++++++++++++++++++++++++++++++++++++++++
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
       if (
         !hasScheduledUpdateOrContext && // !false
         // If this is the second pass of an error or suspense boundary, there
         // may not be work scheduled on `current`, so we check for this flag.
         (workInProgress.flags & DidCapture) === NoFlags // true
+        // 要求flags没有DidCapture - 那这个一般都是为true的，肯定是没有的 // ++++++++++++++++++++++++++++++++++
       ) {
         // No pending updates or context. Bail out now.
         didReceiveUpdate = false;
@@ -3995,21 +4075,51 @@ function beginWork(
           current,
           workInProgress,
           renderLanes,
+          // +++++++++++++++++++++++++++++++++++++++++++++++++++++
+          // ！！！
+          // 注意在packages/react-reconciler/src/ReactFiberConcurrentUpdates.new.js中的enqueueUpdate以及finishQueueingConcurrentUpdates -> markUpdateLaneFromFiberToRoot
+          // 里面的逻辑！！！
+          // ！！！一定不要忘记这里面的逻辑 // ++++++++++++++++++++++++++++++++++++++++++++
+          // +++++++++++++++++++++++++++++++++++++++++++++++++++++
+          // 另外还要注意prepareFreshStack中的逻辑：让wip复用current的大部分属性，所以在那里的时候wip的child就已经指向了current的child的 // ++++++++++++++++++++++++++++++++++++
+          // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         );
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // 这个函数简单的来讲就是检查wip的childLanes是否包含renderLanes
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // 包含的话就直接让wip的child指向current的child的alternate（packages/react-reconciler/src/ReactChildFiber.new.js中的cloneChildFibers） // ++++++++++++++++++++++++++
+        // 如果不包含的话那么直接返回的是一个null
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
       if ((current.flags & ForceUpdateForLegacySuspense) !== NoFlags) {
         // This is a special case that only exists for legacy mode.
         // See https://github.com/facebook/react/pull/19216.
         didReceiveUpdate = true;
       } else {
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // An update was scheduled on this fiber, but there are no new props
         // nor legacy context. Set this to false. If an update queue or context
         // consumer produces a changed value, it will set this to true. Otherwise,
         // the component will assume the children have not changed and bail out.
-        didReceiveUpdate = false;
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        didReceiveUpdate = false; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // 这个变量在updateFunctionComponent函数中使用
+        // 以及在renderWithHooks -> Component -> useState -> updateState -> updateReducer -> !is(newState, hook.memoizedState): markWorkInProgressReceivedUpdate -> 
+        // didReceiveUpdate = true;来去做的 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+        /* 
+        packages/react-reconciler/src/ReactFiberWorkLoop.new.js
+        prepareFreshStack -> createWorkInProgress // ++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+        packages/react-reconciler/src/ReactFiber.new.js
+        createWorkInProgress // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        */
       }
     }
-  } else { // 第一次挂载期间
+  } else {
     didReceiveUpdate = false;
 
     if (getIsHydrating() && isForkedChild(workInProgress)) {
@@ -4033,7 +4143,14 @@ function beginWork(
   // the update queue. However, there's an exception: SimpleMemoComponent
   // sometimes bails out later in the begin phase. This indicates that we should
   // move this assignment out of the common path and into each branch.
-  workInProgress.lanes = NoLanes; // 0 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // 注意！！！
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  workInProgress.lanes = NoLanes; // 把workInProgress fiber的lanes置为0 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   switch (workInProgress.tag) { // 标签
     case IndeterminateComponent: {
@@ -4053,6 +4170,7 @@ function beginWork(
         renderLanes,
       );
     }
+    // App组件
     case FunctionComponent: { // 函数式组件
       const Component = workInProgress.type;
       const unresolvedProps = workInProgress.pendingProps;
@@ -4060,6 +4178,7 @@ function beginWork(
         workInProgress.elementType === Component
           ? unresolvedProps
           : resolveDefaultProps(Component, unresolvedProps);
+      // 更新函数式组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       return updateFunctionComponent( // 更新函数式组件 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         current,
         workInProgress,
@@ -4095,10 +4214,16 @@ function beginWork(
         return updateHostSingleton(current, workInProgress, renderLanes);
       }
     // eslint-disable-next-line no-fallthrough
-    case HostComponent: // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    case HostComponent: // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // button
       return updateHostComponent(current, workInProgress, renderLanes);
     case HostText: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-      return updateHostText(current, workInProgress);
+      // 更新主机文本 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 'count is '
+      // 1
+      // 这个函数中有这样一个注释：This is terminal. 
+      // 这是终端 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      return updateHostText(current, workInProgress); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case SuspenseComponent:
       return updateSuspenseComponent(current, workInProgress, renderLanes);
     case HostPortal:

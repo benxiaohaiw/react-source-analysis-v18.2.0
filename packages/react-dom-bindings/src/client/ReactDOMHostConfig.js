@@ -324,6 +324,7 @@ export function finalizeInitialChildren(
   }
 }
 
+// 准备更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=++++++++++++++++++++++++++++++++++++++++
 export function prepareUpdate(
   domElement: Instance,
   type: string,
@@ -346,9 +347,11 @@ export function prepareUpdate(
       validateDOMNesting(null, string, ownAncestorInfo);
     }
   }
-  return diffProperties(domElement, type, oldProps, newProps);
+  // packages/react-dom-bindings/src/client/ReactDOMComponent.js
+  return diffProperties(domElement, type, oldProps, newProps); // 比对属性 // ++++++++++++++++++++++++++++++++++++++++++++++
 }
 
+// 应该设置文本内容
 export function shouldSetTextContent(type: string, props: Props): boolean {
   return (
     type === 'textarea' ||
@@ -376,12 +379,14 @@ export function createTextInstance(
   return textNode;
 }
 
+// 获取当前事件优先级 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function getCurrentEventPriority(): EventPriority {
-  const currentEvent = window.event;
-  if (currentEvent === undefined) {
-    return DefaultEventPriority;
+  const currentEvent = window.event; // 从window.event上取出当前的事件对象
+  if (currentEvent === undefined) { // 如果是undefined
+    return DefaultEventPriority; // 则返回默认事件优先级 16 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
   }
-  return getEventPriority(currentEvent.type);
+  // 否则依然是根据事件的类型获取事件优先级
+  return getEventPriority(currentEvent.type); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 export const isPrimaryRenderer = true;
@@ -430,16 +435,23 @@ export function getInstanceFromScope(
 //     Microtasks
 // -------------------
 export const supportsMicrotasks = true;
-export const scheduleMicrotask: any =
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+export const scheduleMicrotask: any = // 调度微任务 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   typeof queueMicrotask === 'function'
-    ? queueMicrotask
+    ? queueMicrotask // 第一个就是queueMicrotask
     : typeof localPromise !== 'undefined'
     ? callback =>
         localPromise
           .resolve(null)
-          .then(callback)
+          .then(callback) // 再不行就是promise.resolve(null).then了
           .catch(handleErrorInNextTick)
     : scheduleTimeout; // TODO: Determine the best fallback here.
+    // 再不行就是scheduleTimeout - 也就是setTimeout
+    /* 
+    export const scheduleTimeout: any =
+      typeof setTimeout === 'function' ? setTimeout : (undefined: any);
+    */
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 function handleErrorInNextTick(error) {
   setTimeout(() => {
@@ -487,6 +499,8 @@ export function commitMount(
   }
 }
 
+// dom属性相关的更新操作 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 提交更新 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function commitUpdate(
   domElement: Instance,
   updatePayload: Array<mixed>,
@@ -495,23 +509,25 @@ export function commitUpdate(
   newProps: Props,
   internalInstanceHandle: Object,
 ): void {
+  // 将这个diff应用到这个dom树上 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Apply the diff to the DOM node.
-  updateProperties(domElement, updatePayload, type, oldProps, newProps);
+  updateProperties(domElement, updatePayload, type, oldProps, newProps); // +++++++++++++++++++++++++++++++++++++++++++++
   // Update the props handle so that we know which props are the ones with
   // with current event handlers.
-  updateFiberProps(domElement, newProps);
+  updateFiberProps(domElement, newProps); // +++++++++++++++++++++++++++++++++++++
 }
 
 export function resetTextContent(domElement: Instance): void {
   setTextContent(domElement, '');
 }
 
+// 提交文本更新 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function commitTextUpdate(
   textInstance: TextInstance,
   oldText: string,
   newText: string,
 ): void {
-  textInstance.nodeValue = newText;
+  textInstance.nodeValue = newText; // 直接就是设置dom的nodeValue // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 export function appendChild(

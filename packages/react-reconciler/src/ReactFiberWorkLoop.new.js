@@ -599,7 +599,7 @@ export function getCurrentTime(): number {
   return now();
 }
 
-// 请求更新优先级
+// 请求更新车道 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function requestUpdateLane(fiber: Fiber): Lane {
   // updateContainer中的FiberRootNode的FiberNode举例 // 它的mode为1也就是ConcurrentMode
   // executionContext为0那么与的结果就是NoContext 0
@@ -611,11 +611,11 @@ export function requestUpdateLane(fiber: Fiber): Lane {
   // 特别例子
   // Special cases
   const mode = fiber.mode;
-  if ((mode & ConcurrentMode) === NoMode) {
+  if ((mode & ConcurrentMode) === NoMode) { // 查看fiber的模式是否为并发模式 - 与NoMode相等 【则说明不是并发模式的话则采用同步车道】
     return (SyncLane: Lane);
   } else if (
     !deferRenderPhaseUpdateToNextBatch &&
-    (executionContext & RenderContext) !== NoContext &&
+    (executionContext & RenderContext) !== NoContext /** 执行上下文是渲染上下文 */ &&
     workInProgressRootRenderLanes !== NoLanes
   ) {
     // This is a render phase update. These are not officially supported. The
@@ -660,10 +660,26 @@ export function requestUpdateLane(fiber: Fiber): Lane {
   // The opaque type returned by the host config is internally a lane, so we can
   // use that directly.
   // TODO: Move this type conversion to the event priority module.
-  const updateLane: Lane = (getCurrentUpdatePriority(): any);
+  
+  // 获取当前更新优先级 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+  const updateLane: Lane = (getCurrentUpdatePriority(): any); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (updateLane !== NoLane) {
     return updateLane;
   }
+
+  /* 
+  具体解析可以看packages/react-dom-bindings/src/events/ReactDOMEventListener.js
+  click事件对应DiscreteEventPriority，那么它对应的listenerWrapper就是dispatchDiscreteEvent函数
+  那么在dispatchDiscreteEvent中会去执行setCurrentUpdatePriority(DiscreteEventPriority);
+  // 之后会有个操作就是setCurrentUpdatePriority(previousPriority);恢复之前的更新优先级
+
+  // 而DiscreteEventPriority在packages/react-reconciler/src/ReactEventPriorities.new.js中的值为SyncLane 1
+
+  那么所以如果是通过点击click事件执行的dispatchSetState函数的话这里获取到的更新车道就是SyncLane 1
+
+  在packages/react-reconciler/src/ReactEventPriorities.new.js中currentUpdatePriority默认为NoLane
+  
+  */
 
   // This update originated outside React. Ask the host environment for an
   // appropriate priority, based on the type of event.
@@ -671,9 +687,20 @@ export function requestUpdateLane(fiber: Fiber): Lane {
   // The opaque type returned by the host config is internally a lane, so we can
   // use that directly.
   // TODO: Move this type conversion to the event priority module.
-  const eventLane: Lane = (getCurrentEventPriority(): any);
+  
+  // 获取当前事件优先级 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  const eventLane: Lane = (getCurrentEventPriority(): any); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  /* 
+  如果是在setTimeout中执行dispatchSetState函数的话 - 也就是说脱离react进行操作的话
+  // 那么必定会执行到getCurrentEventPriority函数
+  此函数是在packages/react-dom-bindings/src/client/ReactDOMHostConfig.js下
+  由于是setTimeout操作，而在window.event是没有事件对象的，所以就直接返回的DefaultEventPriority，也就是DefaultLane 16
+  */
+
   return eventLane;
 }
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 function requestRetryLane(fiber: Fiber) {
   // This is a fork of `requestUpdateLane` designed specifically for Suspense
@@ -689,7 +716,7 @@ function requestRetryLane(fiber: Fiber) {
   return claimNextRetryLane();
 }
 
-// 在fiber上调度更新
+// 在fiber上调度更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function scheduleUpdateOnFiber(
   root: FiberRoot,
   fiber: Fiber,
@@ -708,6 +735,7 @@ export function scheduleUpdateOnFiber(
     }
   }
 
+  // 标记root有一个【待处理的更新】 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Mark that the root has a pending update.
   markRootUpdated(root, lane, eventTime); // root.pendingLanes |= lane
   // 16
@@ -729,7 +757,8 @@ export function scheduleUpdateOnFiber(
       lane,
     );
   } else {
-    // 这是一个正常更新
+    
+    // 这是一个正常更新 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // This is a normal update, scheduled from outside the render phase. For
     // example, during an input event.
     if (enableUpdaterTracking) {
@@ -771,7 +800,7 @@ export function scheduleUpdateOnFiber(
       }
     }
 
-    // root === null
+    // root === null -> false
     if (root === workInProgressRoot) {
       // Received an update to a tree that's in the middle of rendering. Mark
       // that there was an interleaved update work on this root. Unless the
@@ -798,12 +827,24 @@ export function scheduleUpdateOnFiber(
       }
     }
 
+
+    /* 
+    在react下click事件导致的这里的lane为1 同步车道
+    脱离react比如setTimeout那么这里的lane就为16 默认车道
+    */
+
+    
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // 确保根是被调度的
-    ensureRootIsScheduled(root, eventTime);
+    ensureRootIsScheduled(root, eventTime); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+    
+    
+    
     if (
       lane === SyncLane && // 16 === 1 -> false
-      executionContext === NoContext &&
-      (fiber.mode & ConcurrentMode) === NoMode &&
+      executionContext === NoContext && // 没有执行上下文
+      (fiber.mode & ConcurrentMode) === NoMode && // fiber的模式不是并发模式
       // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
       !(__DEV__ && ReactCurrentActQueue.isBatchingLegacy)
     ) {
@@ -859,8 +900,10 @@ export function isUnsafeClassRenderPhaseUpdate(fiber: Fiber): boolean {
 // of the existing task is the same as the priority of the next level that the
 // root has work on. This function is called on every update, and right before
 // exiting a task.
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++==
+// 确保root是被调度的 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
-  const existingCallbackNode = root.callbackNode; // FiberRootNode上是否存储了callbackNode
+  const existingCallbackNode = root.callbackNode; // FiberRootNode上是否存储了callbackNode - 它表示存在的callbackNode
 
   // 检查是否有任何车道被其他工作占用。如果是，请将它们标记为过期了，所以我们知道接下来要处理这些。
   // Check if any lanes are being starved by other work. If so, mark them as
@@ -869,27 +912,41 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
 
   // 确定下一个要处理的通道及其优先级。
   // Determine the next lanes to work on, and their priority.
-  const nextLanes = getNextLanes(
+  // packages/react-reconciler/src/ReactFiberLane.new.js
+  const nextLanes = getNextLanes( // 获取下一个车道集合 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     root,
-    root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes,
+    root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes, // false -> 0 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
   ); // 16
+
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // setTimeout下16
+  // react的click下1
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // 下一车道是NoLanes
   if (nextLanes === NoLanes) {
     // 特殊情况：没有什么可做的。
     // Special case: There's nothing to work on.
     if (existingCallbackNode !== null) {
-      cancelCallback(existingCallbackNode); // 取消
+      cancelCallback(existingCallbackNode); // 取消cb
     }
     // 重置状态并return
     root.callbackNode = null;
     root.callbackPriority = NoLane;
-    return;
+    return; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
+
+  /* 
+  packages/react-reconciler/src/ReactFiberLane.new.js下
+  export function getHighestPriorityLane(lanes: Lanes): Lane {
+    return lanes & -lanes;
+  }
+  */
 
   // 我们使用最高优先级通道来表示回调的优先级。
   // We use the highest priority lane to represent the priority of the callback.
-  const newCallbackPriority = getHighestPriorityLane(nextLanes);
+  const newCallbackPriority = getHighestPriorityLane(nextLanes); // 获取最高优先级车道 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 它还是16 或 1
 
   // 检查是否存在现有任务。我们也许可以重用它。
   // Check if there's an existing task. We may be able to reuse it.
@@ -919,11 +976,22 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
         );
       }
     }
-    // 优先级没有改变。我们可以重用现有的任务。退出。
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 优先级没有改变。我们可以重用现有的任务。退出。 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // （因为在其它地方做完之后还好再一次调用ensureRootIsScheduled当前函数的）
+    /* 
+    performSyncWorkOnRoot
+    performConcurrentWorkOnRoot
+    这两个函数的内部逻辑是在commitRoot之后会再次执行ensureRootIsScheduled函数
+    */
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
     // The priority hasn't changed. We can reuse the existing task. Exit.
     return;
   }
 
+  // 取消 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (existingCallbackNode != null) {
     // +++
     // 取消现有回调。我们将在下面安排一个新的。
@@ -931,10 +999,16 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
     cancelCallback(existingCallbackNode);
   }
 
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // newCallbackPriority
+  // setTimeout下16
+  // react的click下1
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
   // 安排新的回调。
   // Schedule a new callback.
   let newCallbackNode;
-  if (newCallbackPriority === SyncLane) {
+  if (newCallbackPriority === SyncLane) { // 同步车道 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Special case: Sync React callbacks are scheduled on a special
     // internal queue
     if (root.tag === LegacyRoot) {
@@ -943,9 +1017,14 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
       }
       scheduleLegacySyncCallback(performSyncWorkOnRoot.bind(null, root));
     } else {
-      scheduleSyncCallback(performSyncWorkOnRoot.bind(null, root));
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      scheduleSyncCallback(performSyncWorkOnRoot.bind(null, root)); // 调度同步cb - performSyncWorkOnRoot（在root上执行同步工作）
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
     if (supportsMicrotasks) {
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 在一个微任务中刷新这个队列 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // Flush the queue in a microtask.
       if (__DEV__ && ReactCurrentActQueue.current !== null) {
         // Inside `act`, use our internal `act` queue so that these get flushed
@@ -953,25 +1032,33 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
         // of `act`.
         ReactCurrentActQueue.current.push(flushSyncCallbacks);
       } else {
-        scheduleMicrotask(() => {
+
+        // 其实就是产生一个微任务 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // 在packages/react-dom-bindings/src/client/ReactDOMHostConfig.js下的scheduleMicrotask函数
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        scheduleMicrotask(() => { // 调度微任务 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
           // In Safari, appending an iframe forces microtasks to run.
           // https://github.com/facebook/react/issues/22459
           // We don't support running callbacks in the middle of render
           // or commit so we need to check against that.
           if (
-            (executionContext & (RenderContext | CommitContext)) ===
+            (executionContext & (RenderContext | CommitContext)) === // 当前执行上下文不是渲染上下文 也不是提交上下文
             NoContext
           ) {
             // Note that this would still prematurely flush the callbacks
             // if this happens outside render or commit phase (e.g. in an event).
-            flushSyncCallbacks();
+            flushSyncCallbacks(); // 刷新同步cbs // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
           }
         });
+
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
     } else {
       // Flush the queue in an Immediate task.
       scheduleCallback(ImmediateSchedulerPriority, flushSyncCallbacks);
     }
+
+    // 置为null // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     newCallbackNode = null;
   } else {
     let schedulerPriorityLevel;
@@ -983,8 +1070,8 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
       case ContinuousEventPriority:
         schedulerPriorityLevel = UserBlockingSchedulerPriority; // 2
         break;
-      case DefaultEventPriority: // DefaultEventPriority 16
-        // 与之对应的调度优先级为正常调度优先级
+      case DefaultEventPriority: // DefaultEventPriority 16 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // 与之对应的调度优先级为正常调度优先级 // +++++++++++++++++++++++++++++++++++++++++++++++++
         schedulerPriorityLevel = NormalSchedulerPriority; // 3
         break;
       case IdleEventPriority:
@@ -997,9 +1084,9 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
     // +++调度回调+++
     // 返回一个新回调节点
     // 其实就是一个任务对象（task对象）
-    newCallbackNode = scheduleCallback(
+    newCallbackNode = scheduleCallback( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       schedulerPriorityLevel, // 3
-      // 在root上执行并发工作
+      // 在root上执行并发工作 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       performConcurrentWorkOnRoot.bind(null, root), // 绑定FiberRootNode
       // 调度performConcurrentWorkOnRoot这个函数
     );
@@ -1211,7 +1298,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) { // FiberRootNode 是否
     // 为该root已调度的任务节点与当前正在执行的任务节点相同。需要返回一个延续。
     // The task node scheduled for this root is the same one that's
     // currently executed. Need to return a continuation.
-    // ++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     return performConcurrentWorkOnRoot.bind(null, root); // 说明render任务还没有完成只是被中断了 - 那所以还需要继续返回performConcurrentWorkOnRoot
     // 以供wookLoop继续恢复此任务的完成
   }
@@ -1516,9 +1603,11 @@ function markRootSuspended(root, suspendedLanes) {
   markRootSuspended_dontCallThisOneDirectly(root, suspendedLanes);
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 这是不经过Scheduler的同步任务的入口点 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // This is the entry point for synchronous tasks that don't go
 // through Scheduler
-function performSyncWorkOnRoot(root) {
+function performSyncWorkOnRoot(root) { // 在root上执行同步工作 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (enableProfilerTimer && enableProfilerNestedUpdatePhase) {
     syncNestedUpdateFlag();
   }
@@ -1527,16 +1616,47 @@ function performSyncWorkOnRoot(root) {
     throw new Error('Should not already be working.');
   }
 
-  flushPassiveEffects();
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  flushPassiveEffects(); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  let lanes = getNextLanes(root, NoLanes);
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  let lanes = getNextLanes(root, NoLanes); // 获取下一车道集合
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // setTimeout下16
+  // react的click下1
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (!includesSomeLane(lanes, SyncLane)) {
+    // 没有剩余的同步工作。
     // There's no remaining sync work left.
     ensureRootIsScheduled(root, now());
     return null;
   }
 
-  let exitStatus = renderRootSync(root, lanes);
+  /* 
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  同步渲染root阶段
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  */
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  let exitStatus = renderRootSync(root, lanes); // 同步渲染root // ++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 正常情况下是RootComplete 5
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  /* 
+  renderRootSync函数返回的是workInProgressRootExitStatus全局变量
+  而这个全局变量是在renderRootSync -> workLoopSync -> performUnitOfWork -> completeUnitOfWork: workInProgressRootExitStatus = RootCompleted;
+  进行赋值的
+
+  所以这里接收的exitStatus就是RootCompleted 5
+  */
+  //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
   if (root.tag !== LegacyRoot && exitStatus === RootErrored) {
     // If something threw an error, try rendering one more time. We'll render
     // synchronously to block concurrent data mutations, and we'll includes
@@ -1574,20 +1694,46 @@ function performSyncWorkOnRoot(root) {
     return null;
   }
 
+  // 我们现在有了一个一致的树。因为这是一个同步渲染，即使有些东西挂起，我们也会提交它。
   // We now have a consistent tree. Because this is a sync render, we
   // will commit it even if something suspended.
-  const finishedWork: Fiber = (root.current.alternate: any);
+  const finishedWork: Fiber = (root.current.alternate: any); // finishedWork // ++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // 存储在root（FiberRootNode）上 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   root.finishedWork = finishedWork;
   root.finishedLanes = lanes;
-  commitRoot(
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=+
+
+  /* 
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 同步提交root阶段 // +++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  */
+
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // commitRoot -> commitRootImpl // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 提交root // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  commitRoot( // 重点 // ++++++++++++++++++++++++++++++++++++++++
     root,
     workInProgressRootRecoverableErrors,
     workInProgressTransitions,
   );
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++
 
+
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 在退出之前，确保为下一个pending级别调度了回调。
   // Before exiting, make sure there's a callback scheduled for the next
   // pending level.
-  ensureRootIsScheduled(root, now());
+  ensureRootIsScheduled(root, now()); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 再次调用ensureRootIsScheduled函数 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   return null;
 }
@@ -1621,12 +1767,12 @@ export function deferredUpdates<A>(fn: () => A): A {
   }
 }
 
-// 批量更新
+// 批量更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function batchedUpdates<A, R>(fn: A => R, a: A): R {
   const prevExecutionContext = executionContext;
   executionContext |= BatchedContext; // 将执行上下文变为BatchedContext
   try {
-    return fn(a); // 执行fn函数 - 传入参数a
+    return fn(a); // 执行fn函数 - 传入参数a // ++++++++++++++++++++++++++++++++++++++++++++++++++++
   } finally {
     executionContext = prevExecutionContext;
     // If there were legacy sync updates, flush them at the end of the outer
@@ -1787,14 +1933,18 @@ function prepareFreshStack(root: FiberRoot, lanes: Lanes): Fiber { // ++++++++++
   }
   // +++
   workInProgressRoot = root;
-  // ++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // 创建workInProgress
   // 在ReactFiber.new.js下createWorkInProgress
   const rootWorkInProgress = createWorkInProgress(root.current, null); // 根据root.current.alternate创建workInProgress
-  // ++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   workInProgress = rootWorkInProgress; // 赋值给workInProgress
-  // +++++++++
-  workInProgressRootRenderLanes = renderLanes = lanes;
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  
+  // renderLanes
+  workInProgressRootRenderLanes = renderLanes = lanes; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
   workInProgressIsSuspended = false;
   workInProgressThrownValue = null;
   workInProgressSuspendedThenableState = null;
@@ -1808,9 +1958,10 @@ function prepareFreshStack(root: FiberRoot, lanes: Lanes): Fiber { // ++++++++++
   workInProgressRootConcurrentErrors = null;
   workInProgressRootRecoverableErrors = null;
 
+  // 这一步实际上是去处理update环形链表的 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   finishQueueingConcurrentUpdates(); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // 重要的
+  // 重要的一个步骤 // +++++++++++++++++++++++++++++++++++++++++++++++
 
   if (__DEV__) {
     ReactStrictModeWarnings.discardPendingWarnings();
@@ -1972,10 +2123,10 @@ export function renderHasNotSuspendedYet(): boolean {
   return workInProgressRootExitStatus === RootInProgress;
 }
 
-// 同步渲染root
+// 同步渲染root // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
 function renderRootSync(root: FiberRoot, lanes: Lanes) {
   const prevExecutionContext = executionContext;
-  executionContext |= RenderContext; // 表示当前执行上下文为渲染上下文
+  executionContext |= RenderContext; // 表示当前执行上下文为渲染上下文 // ++++++++++++++++++++++++++++++++++++++++
   const prevDispatcher = pushDispatcher(root.containerInfo);
   const prevCacheDispatcher = pushCacheDispatcher();
 
@@ -2001,9 +2152,15 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
 
     workInProgressTransitions = getTransitionsForLanes(root, lanes);
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    prepareFreshStack(root, lanes); // 准备新鲜栈
+    prepareFreshStack(root, lanes); // 准备新鲜栈 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // 主要逻辑是根据root.current.alternate创建产生workInProgress这个变量 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // ++++++++++++++++++++++++++++++++++++++++++++++++
+
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 在prepareFreshStack函数中执行了finishQueueingConcurrentUpdates，它是重要的一个步骤 // +++++++++++++++++++++++++++++++++++++++++++++++++++
+    // finishQueueingConcurrentUpdates这个函数实际上是去处理update环形链表的 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
   if (__DEV__) {
@@ -2018,8 +2175,8 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
 
   do {
     try {
-      // +++
-      workLoopSync(); // 同步工作循环
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      workLoopSync(); // 同步工作循环 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       break; // 退出循环 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     } catch (thrownValue) {
       handleThrow(root, thrownValue);
@@ -2057,6 +2214,7 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
   // 现在渲染阶段已经完成，处理队列是安全的。
   // It's safe to process the queue now that the render phase is complete.
   finishQueueingConcurrentUpdates(); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 再一次调用finishQueueingConcurrentUpdates函数 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // 默认是RootInProgress 0
   return workInProgressRootExitStatus; // RootCompleted 5 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2067,7 +2225,7 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
 
 // The work loop is an extremely hot path. Tell Closure not to inline it.
 /** @noinline */
-function workLoopSync() {
+function workLoopSync() { // 同步工作循环 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Perform work without checking if we need to yield between fiber.
 
   if (workInProgressIsSuspended) {
@@ -2082,8 +2240,8 @@ function workLoopSync() {
   }
 
   // 循环
-  while (workInProgress !== null) {
-    performUnitOfWork(workInProgress); // 执行工作单元
+  while (workInProgress !== null) { // 直接就是一个while循环 - 没有其它的终止条件 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    performUnitOfWork(workInProgress); // 执行工作单元 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 }
 
@@ -2221,7 +2379,7 @@ function workLoopConcurrent() { // 并发工作循环
   }
 }
 
-// 执行工作单元 ++++++
+// 执行工作单元 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function performUnitOfWork(unitOfWork: Fiber): void {
   // The current, flushed, state of this fiber is the alternate. Ideally
   // nothing should rely on this, but relying on it here means that we don't
@@ -2233,6 +2391,9 @@ function performUnitOfWork(unitOfWork: Fiber): void {
   if (enableProfilerTimer && (unitOfWork.mode & ProfileMode) !== NoMode) {
     startProfilerTimer(unitOfWork);
     // 开始工作
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // renderLanes是在prepareFreshStack函数中进行赋值的，要注意！ // +++++++++++++++++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     next = beginWork(current, unitOfWork, renderLanes); // ++++++++++++++++++++++++++++++++++++++++++++++
     stopProfilerTimerIfRunningAndRecordDelta(unitOfWork, true);
   } else { // 这个函数的主逻辑是在./ReactFiberBeginWork.new.js下的beginWork函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2240,9 +2401,17 @@ function performUnitOfWork(unitOfWork: Fiber): void {
     next = beginWork(current, unitOfWork, renderLanes); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
   // beginWork函数返回一个next // +++++++++++++++++++++++++++++++++++++++++++++
+  // beginWork -> case HostText: updateHostText -> return null // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  /* 
+  更新期间的beginWork主要就是复用fiber、创建新的fiber、收集需要删除的老fiber
+  completeUnitOfWork做的事情：
+
+  */
 
   resetCurrentDebugFiberInDEV();
-  unitOfWork.memoizedProps = unitOfWork.pendingProps; // 将其要更新的props放到它的上一次属性上
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  unitOfWork.memoizedProps = unitOfWork.pendingProps; // 将其要更新的props放到它的上一次属性上 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (next === null) {
     // 如果这没有产生新工作，请完成当前工作。
     // If this doesn't spawn new work, complete the current work.
@@ -2365,8 +2534,10 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
   // sibling. If there are no more siblings, return to the parent fiber.
   let completedWork: Fiber = unitOfWork;
 
+
   // do while循环 // +++++++++++++++++++++++++++++++++++++
   do { // do while循环 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
     // The current, flushed, state of this fiber is the alternate. Ideally
     // nothing should rely on this, but relying on it here means that we don't
@@ -2472,14 +2643,20 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
     // 更新我们正在处理的下一件事，以防出现问题。
     // Update the next thing we're working on in case something throws.
     workInProgress = completedWork; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 一定要注意：当前是在do while循环里面的 // +++++++++++++++++++++
+    // 执行到这里并没有return语句代码的 // ++++++++++++++++++++++++++++
 
 
+    // ++++++++++++++++++++++++++++
     // 在while循环里面 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   } while (completedWork !== null); // 只要completeWork不是null，那么一直在这个循环中 // +++++++++++++++++++++++++++++
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
+
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // while循环结束，那么说明此时以及到达了root - 准确的来说应该是到达了FiberNode了就是紧挨着FiberRootNode的那个东东 // +++++++++++++++++++++++++++++++++++++++++++++++
   // 我们已经到达了root
   // We've reached the root.
@@ -2487,10 +2664,14 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
   if (workInProgressRootExitStatus === RootInProgress) { // === 0
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     workInProgressRootExitStatus = RootCompleted; // 到达了root那么就赋值为RootCompleted 5 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
-// 提交root // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 提交root // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function commitRoot(
   root: FiberRoot,
   recoverableErrors: null | Array<CapturedValue<mixed>>,
@@ -2503,23 +2684,31 @@ function commitRoot(
 
   try {
     ReactCurrentBatchConfig.transition = null;
-    setCurrentUpdatePriority(DiscreteEventPriority);
-    // 执行commitRootImpl函数
-    commitRootImpl( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    setCurrentUpdatePriority(DiscreteEventPriority); // 设置当前更新优先级为【离散事件优先级】 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    // 执行commitRootImpl函数 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    commitRootImpl( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       root,
       recoverableErrors,
       transitions,
       previousUpdateLanePriority,
     );
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    
   } finally {
     ReactCurrentBatchConfig.transition = prevTransition;
-    setCurrentUpdatePriority(previousUpdateLanePriority);
+    setCurrentUpdatePriority(previousUpdateLanePriority); // 再设置回原来的更新优先级 // +++++
   }
 
   return null;
 }
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=+++++++++++++++++
+// 提交root实现 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function commitRootImpl(
   root: FiberRoot,
   recoverableErrors: null | Array<CapturedValue<mixed>>,
@@ -2534,6 +2723,54 @@ function commitRootImpl(
     // TODO: Might be better if `flushPassiveEffects` did not automatically
     // flush synchronous work at the end, to avoid factoring hazards like this.
     flushPassiveEffects();
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    /* 
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+export function flushPassiveEffects(): boolean {
+  // Returns whether passive effects were flushed.
+  // TODO: Combine this check with the one in flushPassiveEFfectsImpl. We should
+  // probably just combine the two functions. I believe they were only separate
+  // in the first place because we used to wrap it with
+  // `Scheduler.runWithPriority`, which accepts a function. But now we track the
+  // priority within React itself, so we can mutate the variable directly.
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (rootWithPendingPassiveEffects !== null) { // rootWithPendingPassiveEffects这个全局变量 // ++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // Cache the root since rootWithPendingPassiveEffects is cleared in
+    // flushPassiveEffectsImpl
+    const root = rootWithPendingPassiveEffects;
+    // Cache and clear the remaining lanes flag; it must be reset since this
+    // method can be called from various places, not always from commitRoot
+    // where the remaining lanes are known
+    const remainingLanes = pendingPassiveEffectsRemainingLanes;
+    pendingPassiveEffectsRemainingLanes = NoLanes;
+
+    const renderPriority = lanesToEventPriority(pendingPassiveEffectsLanes);
+    const priority = lowerEventPriority(DefaultEventPriority, renderPriority); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    const prevTransition = ReactCurrentBatchConfig.transition;
+    const previousPriority = getCurrentUpdatePriority();
+
+    try {
+      ReactCurrentBatchConfig.transition = null;
+      setCurrentUpdatePriority(priority); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      return flushPassiveEffectsImpl(); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    } finally {
+      setCurrentUpdatePriority(previousPriority); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      ReactCurrentBatchConfig.transition = prevTransition;
+
+      // Once passive effects have run for the tree - giving components a
+      // chance to retain cache instances they use - release the pooled
+      // cache at the root (if there is one)
+      releaseRootPooledCache(root, remainingLanes);
+    }
+  }
+
+  return false;
+}
+    */
+
+
   } while (rootWithPendingPassiveEffects !== null); // rootWithPendingPassiveEffects默认是null // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   flushRenderPhaseStrictModeWarningsInDEV();
 
@@ -2542,8 +2779,8 @@ function commitRootImpl(
   }
 
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  const finishedWork = root.finishedWork; // 取出finishedWork也就是整个workInProgress树 // ++++++++++++++++++++++++++++++++++++++++++++++++++++
-  const lanes = root.finishedLanes;
+  const finishedWork = root.finishedWork; // 取出finishedWork也就是在render阶段处理的整个workInProgress树 // ++++++++++++++++++++++++++++++++++++++++++++++++++++
+  const lanes = root.finishedLanes; // 取出lanes // +++++++
 
   if (__DEV__) {
     if (enableDebugTracing) {
@@ -2578,7 +2815,8 @@ function commitRootImpl(
     }
   }
 
-  // 重置状态 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 重置状态
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   root.finishedWork = null;
   root.finishedLanes = NoLanes;
 
@@ -2591,20 +2829,23 @@ function commitRootImpl(
 
   // commitRoot never returns a continuation; it always finishes synchronously.
   // So we can clear these now to allow a new callback to be scheduled.
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // 重置回调任务节点以及其优先级 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   root.callbackNode = null;
   root.callbackPriority = NoLane;
 
+  // 检查哪些车道上不再安排任何工作，并将其标记为已完成。 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Check which lanes no longer have any work scheduled on them, and mark
   // those as finished.
-  let remainingLanes = mergeLanes(finishedWork.lanes, finishedWork.childLanes);
+  let remainingLanes = mergeLanes(finishedWork.lanes, finishedWork.childLanes); // return (finishedWork.lanes | finishedWork.childLanes)
 
+  // 确保考虑到在渲染阶段由并发事件更新的通道；不要把它们标记为完成。 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Make sure to account for lanes that were updated by a concurrent event
   // during the render phase; don't mark them as finished.
   const concurrentlyUpdatedLanes = getConcurrentlyUpdatedLanes();
   remainingLanes = mergeLanes(remainingLanes, concurrentlyUpdatedLanes);
 
-  // 标记root完成
+  // 标记root已完成 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   markRootFinished(root, remainingLanes);
 
   if (root === workInProgressRoot) {
@@ -2618,26 +2859,34 @@ function commitRootImpl(
     // times out.
   }
 
+  // 如果有待处理的被动effects，请调度一个回调来处理它们。
+  // 尽可能早地执行此操作，这样它就会在commit提交阶段可能调度的任何其他任务【之前】排队。(See #16714.)。
   // If there are pending passive effects, schedule a callback to process them.
   // Do this as early as possible, so it is queued before anything else that
   // might get scheduled in the commit phase. (See #16714.)
   // TODO: Delete all other places that schedule the passive effect callback
   // They're redundant.
   if (
-    (finishedWork.subtreeFlags & PassiveMask) !== NoFlags ||
-    (finishedWork.flags & PassiveMask) !== NoFlags
-  ) { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    if (!rootDoesHavePassiveEffects) {
-      rootDoesHavePassiveEffects = true;
-      pendingPassiveEffectsRemainingLanes = remainingLanes;
+    // &与运算符是两个为1才是1，一个为0就为0
+    (finishedWork.subtreeFlags & PassiveMask /** 2064 -> (2064).toString(2) -> '100000010000' */) !== NoFlags || // 子树标记是否有PassiveMask
+    (finishedWork.flags & PassiveMask) !== NoFlags // 或者其标记是否有PassiveMask
+  ) {
+    
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    if (!rootDoesHavePassiveEffects) { // !false
+      rootDoesHavePassiveEffects = true; // 标记为true // ++++++++++++++++++++++++++++++++++++++++++++
+      pendingPassiveEffectsRemainingLanes = remainingLanes; // 赋值
       // workInProgressTransitions might be overwritten, so we want
       // to store it in pendingPassiveTransitions until they get processed
       // We need to pass this through as an argument to commitRoot
       // because workInProgressTransitions might have changed between
       // the previous render and commit if we throttle the commit
       // with setTimeout
-      pendingPassiveTransitions = transitions;
+      pendingPassiveTransitions = transitions; // 赋值
+
+      // 正常调度优先级
       scheduleCallback(NormalSchedulerPriority, () => {
+        // 刷新passiveEffects // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         flushPassiveEffects();
         // This render triggered passive effects: release the root cache pool
         // *after* passive effects fire to avoid freeing a cache pool that may
@@ -2645,33 +2894,48 @@ function commitRootImpl(
         return null;
       });
     }
+
   }
 
+  // 检查整个树是否有任何的effects // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Check if there are any effects in the whole tree.
   // TODO: This is left over from the effect list implementation, where we had
   // to check for the existence of `firstEffect` to satisfy Flow. I think the
   // only other reason this optimization exists is because it affects profiling.
   // Reconsider whether this is necessary.
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // finishedWork.subtreeFlags是否有effects
   const subtreeHasEffects =
     (finishedWork.subtreeFlags &
-      (BeforeMutationMask | MutationMask | LayoutMask | PassiveMask)) !==
+      (BeforeMutationMask | MutationMask | LayoutMask | PassiveMask)) /** 15990 -> (15990).toString(2) -> '11111001110110' */ !==
     NoFlags;
+
+  // &与运算符是两个为1才是1，一个为0就为0
+
+  /* 
+  | Update（completeWork）再进行| PerformWork（packages/react-reconciler/src/ReactFiberBeginWork.new.js -> updateFunctionComponent） -> 100 | 001 -> 5
+  (5).toString(2) -> 101
+  */
+  
+  // finishedWork.flags是否有effect
   const rootHasEffect =
-    (finishedWork.flags &
-      (BeforeMutationMask | MutationMask | LayoutMask | PassiveMask)) !==
+    (finishedWork.flags & // 0（prepareFreshStack -> createWorkInProgress）
+      (BeforeMutationMask | MutationMask | LayoutMask | PassiveMask)) /** 15990 -> (15990).toString(2) -> '11111001110110' */ !==
     NoFlags;
 
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (subtreeHasEffects || rootHasEffect) { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     const prevTransition = ReactCurrentBatchConfig.transition;
     ReactCurrentBatchConfig.transition = null;
-    const previousPriority = getCurrentUpdatePriority();
-    setCurrentUpdatePriority(DiscreteEventPriority);
+    const previousPriority = getCurrentUpdatePriority(); // 获取当前更新优先级
+    setCurrentUpdatePriority(DiscreteEventPriority); // 设置当前更新优先级为离散事件优先级 // ++++++++++++++++++++++++++++++++++++++++
 
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     const prevExecutionContext = executionContext;
     executionContext |= CommitContext; // 将执行上下文加入提交上下文 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+    // 在调用生命周期之前将此重置为null
     // Reset this to null before calling lifecycles
     ReactCurrentOwner.current = null;
 
@@ -2686,6 +2950,15 @@ function commitRootImpl(
       root,
       finishedWork,
     );
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+
+
+
+
+
 
     if (enableProfilerTimer) {
       // Mark the current commit time to be shared by all Profilers in this
@@ -2699,11 +2972,25 @@ function commitRootImpl(
       rootCommittingMutationOrLayoutEffects = root;
     }
 
+
+
+
+
+
+
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
     // 下一阶段是mutation阶段，我们会对host树进行mutate操作 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // The next phase is the mutation phase, where we mutate the host tree.
     // packages/react-reconciler/src/ReactFiberCommitWork.new.js中的函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     commitMutationEffects(root, finishedWork, lanes); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 这一阶段主要是进行操作dom的
+
+
+
+
+
+
 
     if (enableCreateEventHandleAPI) {
       if (shouldFireAfterActiveInstanceBlur) {
@@ -2716,7 +3003,7 @@ function commitRootImpl(
     // the mutation phase, so that the previous tree is still current during
     // componentWillUnmount, but before the layout phase, so that the finished
     // work is current during componentDidMount/Update.
-    root.current = finishedWork;
+    root.current = finishedWork; // 使root的current指向finishedWork，也就是render阶段操作的wip树 // ++++++++++++++++++++++++++++++++++++++
 
     // The next phase is the layout phase, where we call effects that read
     // the host tree after it's been mutated. The idiomatic use case for this is
@@ -2729,7 +3016,23 @@ function commitRootImpl(
     if (enableSchedulingProfiler) {
       markLayoutEffectsStarted(lanes);
     }
+
+
+    
+
+
+
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     commitLayoutEffects(finishedWork, root, lanes); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+
+
+
+
+
     if (__DEV__) {
       if (enableDebugTracing) {
         logLayoutEffectsStopped();
@@ -2744,18 +3047,23 @@ function commitRootImpl(
       rootCommittingMutationOrLayoutEffects = null;
     }
 
+    // 告诉Scheduler在帧的末尾yield，这样浏览器就有机会进行绘制。
     // Tell Scheduler to yield at the end of the frame, so the browser has an
     // opportunity to paint.
     requestPaint();
 
     executionContext = prevExecutionContext;
 
+    // 将优先级重置为先前的非同步值。
     // Reset the priority to the previous non-sync value.
     setCurrentUpdatePriority(previousPriority);
     ReactCurrentBatchConfig.transition = prevTransition;
   } else {
+    // 没有effects // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // No effects.
-    root.current = finishedWork;
+    root.current = finishedWork; // 让root的current指向这个finishWork树，也就是在render阶段处理的wip树 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
     // Measure these anyway so the flamegraph explicitly shows that there were
     // no effects.
     // TODO: Maybe there's a better way to report this.
@@ -2782,6 +3090,7 @@ function commitRootImpl(
     }
   }
 
+  // 再读一遍，因为effect可能已经更新了它
   // Read this again, since an effect might have updated it
   remainingLanes = root.pendingLanes;
 
@@ -2819,6 +3128,7 @@ function commitRootImpl(
     onCommitRootTestSelector();
   }
 
+  // 总是在退出`commitRoot`之前调用这个函数，以确保在这个根上的任何额外工作都是被调度的。 // ++++++++++++++++++++++++++++++++++++++++++=
   // Always call this before exiting `commitRoot`, to ensure that any
   // additional work on this root is scheduled.
   ensureRootIsScheduled(root, now()); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
@@ -2844,6 +3154,8 @@ function commitRootImpl(
     throw error;
   }
 
+  // 如果被动效果是离散渲染的结果，请在当前任务结束时同步刷新它们，以便可以立即观察到结果。
+  // 否则，我们假设它们不是顺序相关的，不需要被外部系统观察到，所以我们可以等到绘制之后。
   // If the passive effects are the result of a discrete render, flush them
   // synchronously at the end of the current task so that the result is
   // immediately observable. Otherwise, we assume that they are not
@@ -2859,6 +3171,7 @@ function commitRootImpl(
     flushPassiveEffects();
   }
 
+  // 再读一遍，因为被动effect可能已经更新了它
   // Read this again, since a passive effect might have updated it
   remainingLanes = root.pendingLanes;
   if (includesSomeLane(remainingLanes, (SyncLane: Lane))) {
@@ -2878,6 +3191,7 @@ function commitRootImpl(
     nestedUpdateCount = 0;
   }
 
+  // 如果layout工作是被调度的，则现在刷新它 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // If layout work was scheduled, flush it now.
   flushSyncCallbacks();
 
@@ -2966,6 +3280,7 @@ function releaseRootPooledCache(root: FiberRoot, remainingLanes: Lanes) {
   }
 }
 
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function flushPassiveEffects(): boolean {
   // Returns whether passive effects were flushed.
   // TODO: Combine this check with the one in flushPassiveEFfectsImpl. We should
@@ -2973,7 +3288,9 @@ export function flushPassiveEffects(): boolean {
   // in the first place because we used to wrap it with
   // `Scheduler.runWithPriority`, which accepts a function. But now we track the
   // priority within React itself, so we can mutate the variable directly.
-  if (rootWithPendingPassiveEffects !== null) {
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (rootWithPendingPassiveEffects !== null) { // rootWithPendingPassiveEffects这个全局变量 // ++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Cache the root since rootWithPendingPassiveEffects is cleared in
     // flushPassiveEffectsImpl
     const root = rootWithPendingPassiveEffects;
@@ -2984,16 +3301,16 @@ export function flushPassiveEffects(): boolean {
     pendingPassiveEffectsRemainingLanes = NoLanes;
 
     const renderPriority = lanesToEventPriority(pendingPassiveEffectsLanes);
-    const priority = lowerEventPriority(DefaultEventPriority, renderPriority);
+    const priority = lowerEventPriority(DefaultEventPriority, renderPriority); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++
     const prevTransition = ReactCurrentBatchConfig.transition;
     const previousPriority = getCurrentUpdatePriority();
 
     try {
       ReactCurrentBatchConfig.transition = null;
-      setCurrentUpdatePriority(priority);
-      return flushPassiveEffectsImpl();
+      setCurrentUpdatePriority(priority); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      return flushPassiveEffectsImpl(); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     } finally {
-      setCurrentUpdatePriority(previousPriority);
+      setCurrentUpdatePriority(previousPriority); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       ReactCurrentBatchConfig.transition = prevTransition;
 
       // Once passive effects have run for the tree - giving components a
@@ -3002,6 +3319,7 @@ export function flushPassiveEffects(): boolean {
       releaseRootPooledCache(root, remainingLanes);
     }
   }
+
   return false;
 }
 

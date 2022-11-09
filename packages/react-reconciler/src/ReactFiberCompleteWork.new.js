@@ -175,7 +175,7 @@ import {
   popRootMarkerInstance,
 } from './ReactFiberTracingMarkerComponent.new';
 
-// 标记更新
+// 标记更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function markUpdate(workInProgress: Fiber) {
   // Tag the fiber with an update effect. This turns a Placement into
   // a PlacementAndUpdate.
@@ -266,6 +266,8 @@ if (supportsMutation) {
   updateHostContainer = function(current: null | Fiber, workInProgress: Fiber) {
     // Noop
   };
+
+  // 更新主机组件// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   updateHostComponent = function(
     current: Fiber,
     workInProgress: Fiber,
@@ -274,7 +276,7 @@ if (supportsMutation) {
   ) {
     // If we have an alternate, that means this is an update and we need to
     // schedule a side-effect to do the updates.
-    const oldProps = current.memoizedProps;
+    const oldProps = current.memoizedProps; // current的上一次属性 // ++++++++++++++++++++++++++++
     if (oldProps === newProps) {
       // In mutation mode, this is sufficient for a bailout because
       // we won't touch this node even if children changed.
@@ -285,23 +287,28 @@ if (supportsMutation) {
     // have newProps so we'll have to reuse them.
     // TODO: Split the update API as separate for the props vs. children.
     // Even better would be if children weren't special cased at all tho.
-    const instance: Instance = workInProgress.stateNode;
+    const instance: Instance = workInProgress.stateNode; // dom元素
     const currentHostContext = getHostContext();
     // TODO: Experiencing an error where oldProps is null. Suggests a host
     // component is hitting the resume path. Figure out why. Possibly
     // related to `hidden`.
-    const updatePayload = prepareUpdate(
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // packages/react-dom-bindings/src/client/ReactDOMHostConfig.js下prepareUpdate -> diffProperties（packages/react-dom-bindings/src/client/ReactDOMComponent.js）
+    const updatePayload = prepareUpdate( // 准备更新 // +++++++++++++++++++++++++++++++++++++++++
       instance,
       type,
       oldProps,
       newProps,
       currentHostContext,
-    );
+    ); // 实际上是比对属性 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 返回的是一个数组 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
     // TODO: Type this specific to this type of component.
-    workInProgress.updateQueue = (updatePayload: any);
+    workInProgress.updateQueue = (updatePayload: any); // 挂载到updateQueue上 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // If the update payload indicates that there is a change or if there
     // is a new ref we mark this as an update. All the work is done in commitWork.
-    if (updatePayload) {
+    if (updatePayload) { // 如果有的话 - 那么就需要进行标记更新（也就是把wip的flags |= Update） // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 标记更新 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       markUpdate(workInProgress); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
   };
@@ -658,9 +665,12 @@ function cutOffTailIfNeeded(
 
 // 冒泡属性 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function bubbleProperties(completedWork: Fiber) {
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   const didBailout =
     completedWork.alternate !== null &&
     completedWork.alternate.child === completedWork.child; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   let newChildLanes = NoLanes;
   let subtreeFlags = NoFlags; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -726,7 +736,7 @@ function bubbleProperties(completedWork: Fiber) {
 
     // 更新completedWork的subtreeFlags - 它的值会和它的children的flags是有直接关系的 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     completedWork.subtreeFlags |= subtreeFlags; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  } else {
+  } else { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Bubble up the earliest expiration time.
     if (enableProfilerTimer && (completedWork.mode & ProfileMode) !== NoMode) {
       // In profiling mode, resetChildExpirationTime is also used to reset
@@ -756,6 +766,8 @@ function bubbleProperties(completedWork: Fiber) {
 
       completedWork.treeBaseDuration = treeBaseDuration;
     } else {
+
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       let child = completedWork.child;
       while (child !== null) {
         newChildLanes = mergeLanes(
@@ -768,24 +780,27 @@ function bubbleProperties(completedWork: Fiber) {
         // flags have a lifetime only of a single render + commit, so we should
         // ignore them.
         // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        subtreeFlags |= child.subtreeFlags & StaticMask;
-        subtreeFlags |= child.flags & StaticMask;
+        subtreeFlags |= child.subtreeFlags & StaticMask; // ++++++++++++++++++++++++++++++
+        subtreeFlags |= child.flags & StaticMask; // +++++++++++++++++++++++++++++++++++++++
         // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         // Update the return pointer so the tree is consistent. This is a code
         // smell because it assumes the commit phase is never concurrent with
         // the render phase. Will address during refactor to alternate model.
-        child.return = completedWork;
+        child.return = completedWork; // ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-        child = child.sibling;
+        child = child.sibling; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
     }
 
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     completedWork.subtreeFlags |= subtreeFlags; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   completedWork.childLanes = newChildLanes;
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   return didBailout;
 }
@@ -883,7 +898,7 @@ function completeWork(
   workInProgress: Fiber,
   renderLanes: Lanes,
 ): Fiber | null {
-  const newProps = workInProgress.pendingProps;
+  const newProps = workInProgress.pendingProps; // 新的属性 // 'count is ' | 1
   // Note: This intentionally doesn't check if we're hydrating because comparing
   // to the current tree provider fiber is just as fast and less error-prone.
   // Ideally we would have a special version of the work loop only
@@ -893,14 +908,16 @@ function completeWork(
     case IndeterminateComponent:
     case LazyComponent:
     case SimpleMemoComponent:
-    case FunctionComponent: // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    case FunctionComponent: // 函数式组件 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ForwardRef:
     case Fragment:
     case Mode:
     case Profiler:
     case ContextConsumer:
     case MemoComponent:
-      bubbleProperties(workInProgress); // 冒泡属性++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 仅仅在这里进行冒泡属性
+      bubbleProperties(workInProgress); // 冒泡属性 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       return null; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ClassComponent: {
       const Component = workInProgress.type;
@@ -910,6 +927,8 @@ function completeWork(
       bubbleProperties(workInProgress);
       return null;
     }
+
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case HostRoot: { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       const fiberRoot = (workInProgress.stateNode: FiberRoot); // FiberRootNode // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -990,8 +1009,11 @@ function completeWork(
       }
 
       updateHostContainer(current, workInProgress);
+
       // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-      bubbleProperties(workInProgress); // 冒泡属性+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      bubbleProperties(workInProgress); // 也是要进行冒泡属性 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
       if (enableTransitionTracing) {
         if ((workInProgress.subtreeFlags & Visibility) !== NoFlags) {
           // If any of our suspense children toggle visibility, this means that
@@ -1000,7 +1022,7 @@ function completeWork(
           workInProgress.flags |= Passive;
         }
       }
-      return null; // 返回null++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      return null; // 返回null ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
     case HostResource: {
       if (enableFloat && supportsResources) {
@@ -1078,13 +1100,16 @@ function completeWork(
     case HostComponent: {
       popHostContext(workInProgress);
       const type = workInProgress.type;
-      if (current !== null && workInProgress.stateNode != null) {
-        updateHostComponent(current, workInProgress, type, newProps);
+      if (current !== null && workInProgress.stateNode != null) { // 更新
+        // 其实就是对比属性（有的话则存储在wip的updateQueue上且标记wip的flags |= Update） // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        updateHostComponent(current, workInProgress, type, newProps); // 更新主机组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         if (current.ref !== workInProgress.ref) {
           markRef(workInProgress);
         }
+        // ++++++++++++
       } else {
+        // ++++++++++++
         if (!newProps) {
           if (workInProgress.stateNode === null) {
             throw new Error(
@@ -1148,18 +1173,46 @@ function completeWork(
           markRef(workInProgress);
         }
       }
+      // +++++++++++++++++++++++++++++++++++++++++++++++=
 
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 这一步一旦执行完毕，那么对于这个wip来讲它的subTreeFlags将会被改变，因为它的孩子的flags有Update的
+      // 具体可以看下面的详细说明！！！
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // +++++++++++++++++++++++++++++++++++++++++++++++++
       // 冒泡属性
       bubbleProperties(workInProgress); // 冒泡属性+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       return null; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++====++++++++++++++++++++++++++++++++++++++++++++++++
     }
     case HostText: {
-      const newText = newProps;
-      if (current && workInProgress.stateNode != null) {
-        const oldText = current.memoizedProps;
+      const newText = newProps; // 'count is ' | 1
+      if (current && workInProgress.stateNode != null) { // 更新 // +++++++++++++++++++++++++++++++++++++++++++++++++=
+        const oldText = current.memoizedProps; // current对应的上一次老的文本 // +++++++++++++++++++++++++++++++++++++++
         // If we have an alternate, that means this is an update and we need
         // to schedule a side-effect to do the updates.
-        updateHostText(current, workInProgress, oldText, newText);
+        updateHostText(current, workInProgress, oldText, newText); // 更新主机文本 // ++++++++++++++++++++++++++++++++++
+        /* 
+          updateHostText = function(
+    current: Fiber,
+    workInProgress: Fiber,
+    oldText: string,
+    newText: string,
+  ) {
+    // If the text differs, mark it as an update. All the work in done in commitWork.
+    if (oldText !== newText) {
+      markUpdate(workInProgress);
+    }
+  };
+        */
+
+       /* 
+       // 标记更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function markUpdate(workInProgress: Fiber) {
+  // Tag the fiber with an update effect. This turns a Placement into
+  // a PlacementAndUpdate.
+  workInProgress.flags |= Update; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+}
+       */
       } else { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         if (typeof newText !== 'string') {
           if (workInProgress.stateNode === null) {
@@ -1186,7 +1239,46 @@ function completeWork(
           );
         }
       }
+
+      // ++++++++++++++++++++++++++++++++++++++++++++++++
       // 冒泡属性
+      // 此函数主要就是循环遍历wip的孩子|或上它的subtreeFlags以及它的flags，然后把结果|或给wip的subtreeFlags上
+
+      /* 
+      关键代码
+          } else {
+
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      let child = completedWork.child;
+      while (child !== null) {
+        newChildLanes = mergeLanes(
+          newChildLanes,
+          mergeLanes(child.lanes, child.childLanes),
+        );
+
+        // "Static" flags share the lifetime of the fiber/hook they belong to,
+        // so we should bubble those up even during a bailout. All the other
+        // flags have a lifetime only of a single render + commit, so we should
+        // ignore them.
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        subtreeFlags |= child.subtreeFlags & StaticMask; // ++++++++++++++++++++++++++++++
+        subtreeFlags |= child.flags & StaticMask; // +++++++++++++++++++++++++++++++++++++++
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+        // Update the return pointer so the tree is consistent. This is a code
+        // smell because it assumes the commit phase is never concurrent with
+        // the render phase. Will address during refactor to alternate model.
+        child.return = completedWork; // ++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+        child = child.sibling; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      }
+    }
+
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    completedWork.subtreeFlags |= subtreeFlags; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      */
+
       bubbleProperties(workInProgress); // 冒泡属性+++++++++++++++++++++=++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
       return null; // 返回null // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }

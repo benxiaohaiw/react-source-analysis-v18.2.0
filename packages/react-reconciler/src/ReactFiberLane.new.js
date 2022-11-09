@@ -35,16 +35,19 @@ export const TotalLanes = 31;
 
 // 0
 export const NoLanes: Lanes = /*                        */ 0b0000000000000000000000000000000;
-export const NoLane: Lane = /*                          */ 0b0000000000000000000000000000000;
+// 0
+export const NoLane: Lane = /*                          */ 0b0000000000000000000000000000000; // ++++++++++++++++++++++++++++++++++++++++++++++
 
 // 1
-export const SyncLane: Lane = /*                        */ 0b0000000000000000000000000000001;
+export const SyncLane: Lane = /*                        */ 0b0000000000000000000000000000001; // +++++++++++++++++++++++++++++++++++++++++++++
 
 export const InputContinuousHydrationLane: Lane = /*    */ 0b0000000000000000000000000000010;
-export const InputContinuousLane: Lane = /*             */ 0b0000000000000000000000000000100;
+// 4
+export const InputContinuousLane: Lane = /*             */ 0b0000000000000000000000000000100; // ++++++++++++++++++++++++++++++++++++++++++++++
 
 export const DefaultHydrationLane: Lane = /*            */ 0b0000000000000000000000000001000;
-export const DefaultLane: Lane = /*                     */ 0b0000000000000000000000000010000;
+// 16
+export const DefaultLane: Lane = /*                     */ 0b0000000000000000000000000010000; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 const TransitionHydrationLane: Lane = /*                */ 0b0000000000000000000000000100000;
 const TransitionLanes: Lanes = /*                       */ 0b0000000001111111111111111000000;
@@ -79,7 +82,8 @@ export const SelectiveHydrationLane: Lane = /*          */ 0b0001000000000000000
 const NonIdleLanes: Lanes = /*                          */ 0b0001111111111111111111111111111;
 
 export const IdleHydrationLane: Lane = /*               */ 0b0010000000000000000000000000000;
-export const IdleLane: Lane = /*                        */ 0b0100000000000000000000000000000;
+// 536870912
+export const IdleLane: Lane = /*                        */ 0b0100000000000000000000000000000; // ++++++++++++++++++++++++++++++++++++++++++++
 
 export const OffscreenLane: Lane = /*                   */ 0b1000000000000000000000000000000;
 
@@ -131,10 +135,16 @@ export const NoTimestamp = -1;
 let nextTransitionLane: Lane = TransitionLane1;
 let nextRetryLane: Lane = RetryLane1;
 
+// 获取最高优先级车道集合 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function getHighestPriorityLanes(lanes: Lanes | Lane): Lanes {
+  /* 
+  export function getHighestPriorityLane(lanes: Lanes): Lane {
+    return lanes & -lanes;
+  }
+  */
   switch (getHighestPriorityLane(lanes)) {
     case SyncLane:
-      return SyncLane;
+      return SyncLane; // 1 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case InputContinuousHydrationLane:
       return InputContinuousHydrationLane;
     case InputContinuousLane:
@@ -142,7 +152,7 @@ function getHighestPriorityLanes(lanes: Lanes | Lane): Lanes {
     case DefaultHydrationLane:
       return DefaultHydrationLane;
     case DefaultLane:
-      return DefaultLane;
+      return DefaultLane; // 16 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case TransitionHydrationLane:
       return TransitionHydrationLane;
     case TransitionLane1:
@@ -187,25 +197,32 @@ function getHighestPriorityLanes(lanes: Lanes | Lane): Lanes {
   }
 }
 
+// 获取下一车道
 export function getNextLanes(root: FiberRoot, wipLanes: Lanes): Lanes {
   // Early bailout if there's no pending work left.
-  const pendingLanes = root.pendingLanes;
+
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 在packages/react-reconciler/src/ReactFiberWorkLoop.new.js下的scheduleUpdateOnFiber -> markRootUpdated（root.pendingLanes |= lane）做的
+  const pendingLanes = root.pendingLanes; // root上的待处理车道 // +++++++++++++++++++++++++++++++++++++++++++=
   if (pendingLanes === NoLanes) {
     return NoLanes;
   }
 
   let nextLanes = NoLanes;
 
+  // 在当前文件中的markRootUpdated函数中有 - 大概率都是0
   const suspendedLanes = root.suspendedLanes;
   const pingedLanes = root.pingedLanes;
 
   // Do not work on any idle work until all the non-idle work has finished,
   // even if the work is suspended.
-  const nonIdlePendingLanes = pendingLanes & NonIdleLanes;
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // const NonIdleLanes: Lanes = /*                          */ 0b0001111111111111111111111111111;
+  const nonIdlePendingLanes = pendingLanes & NonIdleLanes; // 比如拿16或1 & 这个东东，那结果还是pendingLanes 16或1
   if (nonIdlePendingLanes !== NoLanes) {
     const nonIdleUnblockedLanes = nonIdlePendingLanes & ~suspendedLanes;
-    if (nonIdleUnblockedLanes !== NoLanes) {
-      nextLanes = getHighestPriorityLanes(nonIdleUnblockedLanes);
+    if (nonIdleUnblockedLanes !== NoLanes) { // 还是16或1
+      nextLanes = getHighestPriorityLanes(nonIdleUnblockedLanes); // 16或1
     } else {
       const nonIdlePingedLanes = nonIdlePendingLanes & pingedLanes;
       if (nonIdlePingedLanes !== NoLanes) {
@@ -229,6 +246,8 @@ export function getNextLanes(root: FiberRoot, wipLanes: Lanes): Lanes {
     // TODO: Consider warning in this path if a fallback timer is not scheduled.
     return NoLanes;
   }
+
+  // 正常wipLanes传过来是为0的 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // If we're already in the middle of a render, switching lanes will interrupt
   // it and we'll lose our progress. We should only do this if the new lanes are
@@ -261,7 +280,7 @@ export function getNextLanes(root: FiberRoot, wipLanes: Lanes): Lanes {
     (root.current.mode & ConcurrentUpdatesByDefaultMode) !== NoMode
   ) {
     // Do nothing, use the lanes as they were assigned.
-  } else if ((nextLanes & InputContinuousLane) !== NoLanes) {
+  } else if ((nextLanes & InputContinuousLane /** 输入连续车道 // ++++++++++++++++++++++= */) !== NoLanes) { // 按照上面的16或1来讲结果这里为false
     // When updates are sync by default, we entangle continuous priority updates
     // and default updates, so they render in the same batch. The only reason
     // they use separate lanes is because continuous updates should interrupt
@@ -305,7 +324,7 @@ export function getNextLanes(root: FiberRoot, wipLanes: Lanes): Lanes {
     }
   }
 
-  return nextLanes;
+  return nextLanes; // 正常情况下还是返回16或1的 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 export function getMostRecentEventTime(root: FiberRoot, lanes: Lanes): number {
@@ -460,8 +479,9 @@ export function getLanesToRetrySynchronouslyOnError(
   return NoLanes;
 }
 
+// 是否包含同步车道
 export function includesSyncLane(lanes: Lanes): boolean {
-  return (lanes & SyncLane) !== NoLanes;
+  return (lanes & SyncLane) !== NoLanes; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 export function includesNonIdleWork(lanes: Lanes): boolean {
@@ -478,26 +498,31 @@ export function includesOnlyTransitions(lanes: Lanes): boolean {
   return (lanes & TransitionLanes) === lanes;
 }
 
+// 是否包含阻塞车道
 export function includesBlockingLane(root: FiberRoot, lanes: Lanes): boolean {
   if (
     allowConcurrentByDefault &&
     (root.current.mode & ConcurrentUpdatesByDefaultMode) !== NoMode
   ) {
+    // 默认情况下，并发更新始终使用时间片。
     // Concurrent updates by default always use time slicing.
-    return false;
+    return false; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
+
+  // 同步默认车道集合
   const SyncDefaultLanes =
     InputContinuousHydrationLane |
     InputContinuousLane |
     DefaultHydrationLane |
-    DefaultLane;
-  return (lanes & SyncDefaultLanes) !== NoLanes;
+    DefaultLane; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  return (lanes & SyncDefaultLanes) !== NoLanes; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
+// 是否包含root的过期车道集合
 export function includesExpiredLane(root: FiberRoot, lanes: Lanes): boolean {
   // This is a separate check from includesBlockingLane because a lane can
   // expire after a render has already started.
-  return (lanes & root.expiredLanes) !== NoLanes;
+  return (lanes & root.expiredLanes) !== NoLanes; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 export function isTransitionLane(lane: Lane): boolean {
@@ -525,16 +550,18 @@ export function claimNextRetryLane(): Lane {
   return lane;
 }
 
+// 获取最高优先级车道
 export function getHighestPriorityLane(lanes: Lanes): Lane {
-  return lanes & -lanes;
+  return lanes & -lanes; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
+// 挑选随意的车道
 export function pickArbitraryLane(lanes: Lanes): Lane {
   // This wrapper function gets inlined. Only exists so to communicate that it
   // doesn't matter which bit is selected; you can pick any bit without
   // affecting the algorithms where its used. Here I'm using
   // getHighestPriorityLane because it requires the fewest operations.
-  return getHighestPriorityLane(lanes);
+  return getHighestPriorityLane(lanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 function pickArbitraryLaneIndex(lanes: Lanes) {
@@ -545,15 +572,16 @@ function laneToIndex(lane: Lane) {
   return pickArbitraryLaneIndex(lane);
 }
 
+// 是否包含一些车道
 export function includesSomeLane(a: Lanes | Lane, b: Lanes | Lane): boolean {
-  return (a & b) !== NoLanes;
+  return (a & b) !== NoLanes; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 export function isSubsetOfLanes(set: Lanes, subset: Lanes | Lane): boolean {
   return (set & subset) === subset;
 }
 
-// 合并
+// 合并车道 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function mergeLanes(a: Lanes | Lane, b: Lanes | Lane): Lanes {
   return a | b;
 }
@@ -587,12 +615,13 @@ export function createLaneMap<T>(initial: T): LaneMap<T> {
   return laneMap;
 }
 
+// 标记root有一个【待处理的更新】 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function markRootUpdated(
   root: FiberRoot,
   updateLane: Lane,
   eventTime: number,
 ) {
-  root.pendingLanes |= updateLane;
+  root.pendingLanes |= updateLane; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // If there are any suspended transitions, it's possible this new update
   // could unblock them. Clear the suspended lanes so that we can try rendering
@@ -606,9 +635,9 @@ export function markRootUpdated(
   // We don't do this if the incoming update is idle, because we never process
   // idle updates until after all the regular updates have finished; there's no
   // way it could unblock a transition.
-  if (updateLane !== IdleLane) {
-    root.suspendedLanes = NoLanes;
-    root.pingedLanes = NoLanes;
+  if (updateLane !== IdleLane) { // 不是空闲车道 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    root.suspendedLanes = NoLanes; // 0
+    root.pingedLanes = NoLanes; // 0
   }
 
   const eventTimes = root.eventTimes;
@@ -647,6 +676,7 @@ export function markRootMutableRead(root: FiberRoot, updateLane: Lane) {
   root.mutableReadLanes |= updateLane & root.pendingLanes;
 }
 
+// 标记root已完成 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function markRootFinished(root: FiberRoot, remainingLanes: Lanes) {
   const noLongerPendingLanes = root.pendingLanes & ~remainingLanes;
 

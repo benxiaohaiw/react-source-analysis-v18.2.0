@@ -50,14 +50,18 @@ type ConcurrentQueue = {
 const concurrentQueues: Array<any> = [];
 let concurrentQueuesIndex = 0;
 
-let concurrentlyUpdatedLanes: Lanes = NoLanes;
+let concurrentlyUpdatedLanes: Lanes = NoLanes; // 0
 
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // 完成排队中并发更新 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function finishQueueingConcurrentUpdates(): void {
   const endIndex = concurrentQueuesIndex;
+  
+  // 重置
   concurrentQueuesIndex = 0; // 重置为0
 
-  concurrentlyUpdatedLanes = NoLanes;
+  concurrentlyUpdatedLanes = NoLanes; // 重置为0
 
   let i = 0;
   while (i < endIndex) { // while循环
@@ -85,13 +89,20 @@ export function finishQueueingConcurrentUpdates(): void {
         // 之前的指向现在的
         pending.next = update;
       }
+      // 形成环形链表 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+      // 0 -> 1 -> 2 -> 0
+      // 也就是让pending指向2，这样就能够直接通过next获取0啦 ~ // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 始终让queue的pending属性指向update环形链表的最后一个update - 这样目的是能够直接获取环形链表的第一个update对象
       // 使queue.pending指向现在的update
       queue.pending = update;
     }
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+    // 车道不是NoLane
     if (lane !== NoLane) {
-      markUpdateLaneFromFiberToRoot(fiber, update, lane);
+      // 从这个fiber开始到root标记更新车道
+      markUpdateLaneFromFiberToRoot(fiber, update, lane); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
   }
 }
@@ -117,32 +128,41 @@ function enqueueUpdate(
   concurrentQueues[concurrentQueuesIndex++] = queue;
   concurrentQueues[concurrentQueuesIndex++] = update;
   concurrentQueues[concurrentQueuesIndex++] = lane;
+  // 存入
 
-  // 直接做一个或|运算
+  // mergeLanes的逻辑是直接这两个参数做一个或|运算 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // 16
   concurrentlyUpdatedLanes = mergeLanes(concurrentlyUpdatedLanes, lane); // 0 16
+  // click -> 0 1
+  // setTimeout -> 0 16
 
   // The fiber's `lane` field is used in some places to check if any work is
   // scheduled, to perform an eager bailout, so we need to update it immediately.
   // TODO: We should probably move this to the "shared" queue instead.
-  fiber.lanes = mergeLanes(fiber.lanes, lane); // 16
-  const alternate = fiber.alternate;
+  fiber.lanes = mergeLanes(fiber.lanes, lane); // 16 // ++++++++++++++++++++++++++++++++++++
+  const alternate = fiber.alternate; // alternate
   if (alternate !== null) {
-    alternate.lanes = mergeLanes(alternate.lanes, lane);
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    alternate.lanes = mergeLanes(alternate.lanes, lane); // 也改变alternate的lanes // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 }
 
-// 入队列并发hook更新
+// 入队列并发hook更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function enqueueConcurrentHookUpdate<S, A>(
   fiber: Fiber,
   queue: HookQueue<S, A>,
   update: HookUpdate<S, A>,
   lane: Lane,
 ): FiberRoot | null {
-  const concurrentQueue: ConcurrentQueue = (queue: any);
-  const concurrentUpdate: ConcurrentUpdate = (update: any);
-  enqueueUpdate(fiber, concurrentQueue, concurrentUpdate, lane);
-  return getRootForUpdatedFiber(fiber);
+  
+  const concurrentQueue: ConcurrentQueue = (queue: any); // queue对象（dispatchSetState函数绑定的那个queue对象）
+  const concurrentUpdate: ConcurrentUpdate = (update: any); // 准备的update对象
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  
+  // 入队列更新
+  enqueueUpdate(fiber, concurrentQueue, concurrentUpdate, lane); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  return getRootForUpdatedFiber(fiber); // 为更新fiber获取root，其实就是返回FiberRootNode // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 export function enqueueConcurrentHookUpdateAndEagerlyBailout<S, A>(
@@ -233,26 +253,33 @@ export function unsafe_markUpdateLaneFromFiberToRoot(
   return root;
 }
 
+// 从这个fiber开始到root标记更新车道 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function markUpdateLaneFromFiberToRoot(
   sourceFiber: Fiber,
   update: ConcurrentUpdate | null,
   lane: Lane,
 ): void {
   // Update the source fiber's lanes
-  sourceFiber.lanes = mergeLanes(sourceFiber.lanes, lane);
-  let alternate = sourceFiber.alternate;
+  sourceFiber.lanes = mergeLanes(sourceFiber.lanes, lane); // 直接参数做一个或|运算 // ++++++++++++++++++++++++++++++
+  let alternate = sourceFiber.alternate; // alternate
   if (alternate !== null) {
-    alternate.lanes = mergeLanes(alternate.lanes, lane);
+    alternate.lanes = mergeLanes(alternate.lanes, lane); // 标记更新 // ++++++++++++++++++++++++++++++++++++++++++++
   }
+  // alternate 对立面都要进行标记 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // 将父路径走到根并更新子通道。 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Walk the parent path to the root and update the child lanes.
   let isHidden = false;
   let parent = sourceFiber.return;
   let node = sourceFiber;
+
+  // current和wip都是进行统一的操作的
+  // 循环向上标记【childLanes】 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   while (parent !== null) {
-    parent.childLanes = mergeLanes(parent.childLanes, lane);
+    parent.childLanes = mergeLanes(parent.childLanes, lane); // ++++++++++++++++++++++++++++++++++++++++++
     alternate = parent.alternate;
     if (alternate !== null) {
-      alternate.childLanes = mergeLanes(alternate.childLanes, lane);
+      alternate.childLanes = mergeLanes(alternate.childLanes, lane); // +++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
 
     if (parent.tag === OffscreenComponent) {
@@ -292,6 +319,8 @@ function markUpdateLaneFromFiberToRoot(
   }
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 为更新fiber获取root
 function getRootForUpdatedFiber(sourceFiber: Fiber): FiberRoot | null {
   // TODO: We will detect and infinite update loop and throw even if this fiber
   // has already unmounted. This isn't really necessary but it happens to be the
@@ -309,14 +338,17 @@ function getRootForUpdatedFiber(sourceFiber: Fiber): FiberRoot | null {
   // TODO: Consider adding a `root` backpointer on the update queue.
   detectUpdateOnUnmountedFiber(sourceFiber, sourceFiber);
   let node = sourceFiber;
-  let parent = node.return;
+  let parent = node.return; // 拿到它的return fiber
+
+  // while循环
   while (parent !== null) {
     detectUpdateOnUnmountedFiber(sourceFiber, node);
     node = parent;
-    parent = node.return;
+    parent = node.return; // 一直向上查找
   }
+  // FiberNode没有return了 - 直接看它的tag是否为HostRoot然后返回它的stateNode - 其实就是FiberRootNode
   return node.tag === HostRoot ? (node.stateNode: FiberRoot) : null;
-  // 返回FiberRootNode
+  // 其实就是返回FiberRootNode // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 function detectUpdateOnUnmountedFiber(sourceFiber: Fiber, parent: Fiber) {
