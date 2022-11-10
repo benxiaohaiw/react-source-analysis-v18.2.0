@@ -2607,7 +2607,7 @@ function commitMutationEffectsOnFiber(
   // to reconciliation, because those can be set on all fiber types.
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   switch (finishedWork.tag) { // 依据标签tag
-    case FunctionComponent: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    case FunctionComponent: // 函数式组件 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ForwardRef:
     case MemoComponent:
     case SimpleMemoComponent: {
@@ -2664,8 +2664,13 @@ function commitMutationEffectsOnFiber(
       }
       return; // return 返回
     }
+
+    // 类组件 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ClassComponent: {
-      recursivelyTraverseMutationEffects(root, finishedWork, lanes);
+      recursivelyTraverseMutationEffects(root, finishedWork, lanes); // ++++++++++++++++++++++++++++++++++++++++++++++
+
+      
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       commitReconciliationEffects(finishedWork);
 
       if (flags & Ref) {
@@ -2682,6 +2687,8 @@ function commitMutationEffectsOnFiber(
       }
       return;
     }
+
+
     case HostResource: {
       if (enableFloat && supportsResources) {
         recursivelyTraverseMutationEffects(root, finishedWork, lanes);

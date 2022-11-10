@@ -1201,6 +1201,8 @@ function updateFunctionComponent(
   return workInProgress.child;
 }
 
+
+// 更新类组件 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateClassComponent(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -1269,32 +1271,43 @@ function updateClassComponent(
   }
   prepareToReadContext(workInProgress, renderLanes);
 
-  const instance = workInProgress.stateNode;
+  const instance = workInProgress.stateNode; // 实例对象 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   let shouldUpdate;
-  if (instance === null) {
+  if (instance === null) { // mount时 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     resetSuspendedCurrentOnMountInLegacyMode(current, workInProgress);
 
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 在初始阶段，我们可能需要构造实例。
     // In the initial pass we might need to construct the instance.
-    constructClassInstance(workInProgress, Component, nextProps);
-    mountClassInstance(workInProgress, Component, nextProps, renderLanes);
-    shouldUpdate = true;
+    // ./ReactFiberClassComponent.new.js // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    constructClassInstance(workInProgress, Component, nextProps); // 构造类实例 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
+    mountClassInstance(workInProgress, Component, nextProps, renderLanes); // 挂载类实例 // ++++++++++++++++++++++++++++++++++++++++++++
+    // mountClassInstance -> initializeUpdateQueue // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    shouldUpdate = true; // 标记应该更新 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   } else if (current === null) {
     // In a resume, we'll already have an instance we can reuse.
-    shouldUpdate = resumeMountClassInstance(
+    shouldUpdate = resumeMountClassInstance( // 恢复挂载类实例 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       workInProgress,
       Component,
       nextProps,
       renderLanes,
     );
   } else {
-    shouldUpdate = updateClassInstance(
+    // 更新类实例 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ./ReactFiberClassComponent.new.js
+    shouldUpdate = updateClassInstance( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       current,
       workInProgress,
       Component,
       nextProps,
       renderLanes,
-    );
+    ); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // 完成类组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 返回下一个工作单元
   const nextUnitOfWork = finishClassComponent(
     current,
     workInProgress,
@@ -1316,9 +1329,13 @@ function updateClassComponent(
       didWarnAboutReassigningProps = true;
     }
   }
+
+  // 返回下一个工作单元 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   return nextUnitOfWork;
 }
 
+
+// 完成类组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function finishClassComponent(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -1327,8 +1344,11 @@ function finishClassComponent(
   hasContext: boolean,
   renderLanes: Lanes,
 ) {
+
+
+  // 即使 shouldComponentUpdate 返回 false，Refs也应该更新
   // Refs should update even if shouldComponentUpdate returns false
-  markRef(current, workInProgress);
+  markRef(current, workInProgress); // 标记ref // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   const didCaptureError = (workInProgress.flags & DidCapture) !== NoFlags;
 
@@ -1341,7 +1361,7 @@ function finishClassComponent(
     return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
   }
 
-  const instance = workInProgress.stateNode;
+  const instance = workInProgress.stateNode; // 类组件实例 // ++++++++++++++++++++++++++++++++++++++++++++++++
 
   // Rerender
   ReactCurrentOwner.current = workInProgress;
@@ -1366,7 +1386,14 @@ function finishClassComponent(
     }
     if (__DEV__) {
       setIsRendering(true);
-      nextChildren = instance.render();
+
+
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      nextChildren = instance.render(); // 直接执行实例的render函数，返回vnode // ++++++++++++++++++++++++++++++++++++++++
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      
       if (
         debugRenderPhaseSideEffectsForStrictMode &&
         workInProgress.mode & StrictLegacyMode
@@ -1387,8 +1414,11 @@ function finishClassComponent(
     }
   }
 
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // React DevTools reads this flag.
-  workInProgress.flags |= PerformedWork;
+  workInProgress.flags |= PerformedWork; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
   if (current !== null && didCaptureError) {
     // If we're recovering from an error, reconcile without reusing any of
     // the existing children. Conceptually, the normal children and the children
@@ -1401,19 +1431,25 @@ function finishClassComponent(
       renderLanes,
     );
   } else {
-    reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    reconcileChildren(current, workInProgress, nextChildren, renderLanes); // +++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
   }
 
   // Memoize state using the values we just used to render.
   // TODO: Restructure so we never read values from the instance.
-  workInProgress.memoizedState = instance.state;
+  workInProgress.memoizedState = instance.state; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // The context might have changed so we need to recalculate it.
   if (hasContext) {
     invalidateContextProvider(workInProgress, Component, true);
   }
 
-  return workInProgress.child;
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  return workInProgress.child; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 function pushHostRootContext(workInProgress) {
@@ -1431,7 +1467,7 @@ function pushHostRootContext(workInProgress) {
   pushHostContainer(workInProgress, root.containerInfo);
 }
 
-// 更新主机root
+// 更新主机root // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateHostRoot(current, workInProgress, renderLanes) {
   pushHostRootContext(workInProgress);
 
@@ -1440,14 +1476,21 @@ function updateHostRoot(current, workInProgress, renderLanes) {
   }
 
   const nextProps = workInProgress.pendingProps; // 要更新的属性
-  const prevState = workInProgress.memoizedState; // 上一次的状态
-  const prevChildren = prevState.element; // 上一次的元素
+  const prevState = workInProgress.memoizedState; // 上一次的状态 // {}
+  const prevChildren = prevState.element; // 上一次的元素 // undefined // ++++++++++++++++++++++++++++++++++++++++++++++
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ./ReactFiberClassUpdateQueue.new.js
   cloneUpdateQueue(current, workInProgress); // 克隆更新队列
+  // 就是把current的updateQueue克隆到wip的updateQueue上，注意这是一个【浅克隆】 // ++++++++++++++++++++++++++++++++++++++
+
   processUpdateQueue(workInProgress, nextProps, null, renderLanes); // 处理更新队列
+  // 主要就是处理wip的updateQueue的
+  // 1.把wip.updateQueue.shared.pending = null
+  // 2.把{element}对象放置在wip的updateQueue.baseState上的
+  // 3.把{element}对象放置在wip的memoizedState上 // +++++++++++++++++++++++++++++++++++++++++++++++++++
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  const nextState: RootState = workInProgress.memoizedState; // 要更新的状态
+  const nextState: RootState = workInProgress.memoizedState; // 要更新的状态 // {element};
   const root: FiberRoot = workInProgress.stateNode; // FiberRootNode
   pushRootTransition(workInProgress, root, renderLanes);
 
@@ -1557,6 +1600,8 @@ function updateHostRoot(current, workInProgress, renderLanes) {
       }
     }
   } else { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // root是没有混合的。这要么是只客户端root，要么是以及混合了 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Root is not dehydrated. Either this is a client-only root, or it
     // already hydrated.
@@ -1567,6 +1612,12 @@ function updateHostRoot(current, workInProgress, renderLanes) {
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=++++++++++++++++++++++++++++
     reconcileChildren(current, workInProgress, nextChildren, renderLanes); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++这里很重要
   }
+
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 注意：如果App是类组件的话，那么这里的fiber它的tag就是为ClassComponent
+  // 而如果是函数式组件的话，它的tag在这里暂时为IndeterminateComponent
+  // 要注意的！！！
   return workInProgress.child; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
@@ -3641,7 +3692,7 @@ function resetSuspendedCurrentOnMountInLegacyMode(current, workInProgress) {
   }
 }
 
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function bailoutOnAlreadyFinishedWork(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -3993,8 +4044,9 @@ function attemptEarlyBailoutIfNoScheduledUpdate(
     }
   }
 
-  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 // 开始工作 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4160,6 +4212,7 @@ function beginWork(
         workInProgress.type,
         renderLanes,
       );
+
     }
     case LazyComponent: {
       const elementType = workInProgress.elementType;
@@ -4186,7 +4239,11 @@ function beginWork(
         resolvedProps,
         renderLanes,
       );
+
     }
+
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 类组件 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ClassComponent: {
       const Component = workInProgress.type;
       const unresolvedProps = workInProgress.pendingProps;
@@ -4194,7 +4251,9 @@ function beginWork(
         workInProgress.elementType === Component
           ? unresolvedProps
           : resolveDefaultProps(Component, unresolvedProps);
-      return updateClassComponent(
+
+      // 直接进行更新类组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      return updateClassComponent( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         current,
         workInProgress,
         Component,
@@ -4203,7 +4262,9 @@ function beginWork(
       );
     }
     case HostRoot: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
       return updateHostRoot(current, workInProgress, renderLanes); // ++++++++++++++++++++++++++++++++++++
+
     case HostResource:
       if (enableFloat && supportsResources) {
         return updateHostResource(current, workInProgress, renderLanes);
@@ -4217,6 +4278,7 @@ function beginWork(
     case HostComponent: // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // button
       return updateHostComponent(current, workInProgress, renderLanes);
+
     case HostText: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // 更新主机文本 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // 'count is '
@@ -4224,6 +4286,7 @@ function beginWork(
       // 这个函数中有这样一个注释：This is terminal. 
       // 这是终端 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       return updateHostText(current, workInProgress); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
     case SuspenseComponent:
       return updateSuspenseComponent(current, workInProgress, renderLanes);
     case HostPortal:

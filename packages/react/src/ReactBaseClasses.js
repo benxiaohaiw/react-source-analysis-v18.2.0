@@ -13,17 +13,22 @@ if (__DEV__) {
   Object.freeze(emptyObject);
 }
 
+// 为更新组件状态的基础类助手 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 /**
  * Base class helpers for the updating state of a component.
  */
-function Component(props, context, updater) {
+function Component(props, context, updater) { // Component类 // +++++++++++++++++++++++++++++++++++++++++++++++++++
   this.props = props;
   this.context = context;
   // If a component has string refs, we will assign a different object later.
   this.refs = emptyObject;
+  // 我们初始化默认的更新程序，但真正的更新程序由渲染器注入。 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 在packages/react-reconciler/src/ReactFiberClassComponent.new.js下constructClassInstance -> adoptClassInstance: instance.updater = classComponentUpdater;
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
   // We initialize the default updater but the real one gets injected by the
   // renderer.
-  this.updater = updater || ReactNoopUpdateQueue;
+  this.updater = updater || ReactNoopUpdateQueue; // +++
 }
 
 Component.prototype.isReactComponent = {};
@@ -53,7 +58,8 @@ Component.prototype.isReactComponent = {};
  * @final
  * @protected
  */
-Component.prototype.setState = function(partialState, callback) {
+Component.prototype.setState = function(partialState, callback) { // setState api // +++++++++++++++
+  // 对象 函数 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (
     typeof partialState !== 'object' &&
     typeof partialState !== 'function' &&
@@ -65,7 +71,11 @@ Component.prototype.setState = function(partialState, callback) {
     );
   }
 
+  // 直接执行updater下的enqueueSetState函数 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // packages/react-reconciler/src/ReactFiberClassComponent.new.js
+  // classComponentUpdater
   this.updater.enqueueSetState(this, partialState, callback, 'setState');
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 };
 
 /**
@@ -129,7 +139,7 @@ ComponentDummy.prototype = Component.prototype;
 /**
  * Convenience component with default shallow equality check for sCU.
  */
-function PureComponent(props, context, updater) {
+function PureComponent(props, context, updater) { // PureComponent类 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   this.props = props;
   this.context = context;
   // If a component has string refs, we will assign a different object later.
@@ -141,6 +151,6 @@ const pureComponentPrototype = (PureComponent.prototype = new ComponentDummy());
 pureComponentPrototype.constructor = PureComponent;
 // Avoid an extra prototype jump for these methods.
 assign(pureComponentPrototype, Component.prototype);
-pureComponentPrototype.isPureReactComponent = true;
+pureComponentPrototype.isPureReactComponent = true; // 标记isPureReactComponent // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 export {Component, PureComponent};

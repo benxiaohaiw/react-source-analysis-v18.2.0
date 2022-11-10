@@ -128,7 +128,7 @@ function FiberRootNode(
   }
 }
 
-// 创建FiberRootNode以及FiberNode
+// 创建FiberRootNode以及FiberNode // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function createFiberRoot(
   containerInfo: Container,
   tag: RootTag,
@@ -163,14 +163,17 @@ export function createFiberRoot(
 
   // Cyclic construction. This cheats the type system right now because
   // stateNode is any.
-  const uninitializedFiber = createHostRootFiber( // 创建FiberNode
+  const uninitializedFiber = createHostRootFiber( // 创建FiberNode - current
     tag, // ConcurrentRoot 1
     isStrictMode, // false
     concurrentUpdatesByDefaultOverride, // false
   ); // 产生的这个FiberNode的tag为HostRoot // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // 挂载到FiberRootNode的current属性上
-  root.current = uninitializedFiber;
+
+
+  root.current = uninitializedFiber; // current
   uninitializedFiber.stateNode = root; // FiberNode的stateNode指向FiberRootNode
+
 
   if (enableCache) {
     const initialCache = createCache();
@@ -200,10 +203,33 @@ export function createFiberRoot(
       cache: (null: any), // not enabled yet
     };
     uninitializedFiber.memoizedState = initialState; // 存储在FiberNode的上一次状态上
+    // 存储在current的memoizedState属性上 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
-  // 初始化FiberNode的updateQueue属性
-  initializeUpdateQueue(uninitializedFiber);
+  // 初始化FiberNode的updateQueue属性 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ./ReactFiberClassUpdateQueue.new.js // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  initializeUpdateQueue(uninitializedFiber); // 使current添加updateQueue属性 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  /* 
+  // 初始化更新队列
+export function initializeUpdateQueue<State>(fiber: Fiber): void {
+  const queue: UpdateQueue<State> = {
+    baseState: fiber.memoizedState, // 把fiber的上一次状态属性值存入更新队列的基础状态属性上
+    // 这个baseSatte存储的就是上面的那个initialState
+    // 而它的element // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    firstBaseUpdate: null,
+    lastBaseUpdate: null,
+    shared: { // 共享
+      pending: null,
+      lanes: NoLanes, // 0
+      hiddenCallbacks: null,
+    },
+    callbacks: null,
+  };
+  // 挂载到fiber的updateQueue属性上
+  fiber.updateQueue = queue;
+}
+
+  */
 
   return root;
 }

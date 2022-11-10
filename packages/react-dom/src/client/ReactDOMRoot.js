@@ -97,7 +97,7 @@ function ReactDOMRoot(internalRoot: FiberRoot) {
 }
 
 // $FlowFixMe[prop-missing] found when upgrading Flow
-ReactDOMHydrationRoot.prototype.render = ReactDOMRoot.prototype.render = function( // render函数
+ReactDOMHydrationRoot.prototype.render = ReactDOMRoot.prototype.render = function( // render函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++
   children: ReactNodeList,
 ): void {
   const root = this._internalRoot; // 取出FiberRootNode
@@ -145,7 +145,9 @@ ReactDOMHydrationRoot.prototype.render = ReactDOMRoot.prototype.render = functio
   }
   // 更新容器
   // 在react-reconciler/src/ReactFiberReconciler.js
+  // packages/react-reconciler/src/ReactFiberReconciler.new.js
   updateContainer(children, root, null, null); // {$$typeof: Symbol(react.element), type: f App, props: {children?}} FiberRootNode
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 };
 
 // $FlowFixMe[prop-missing] found when upgrading Flow
@@ -178,7 +180,7 @@ ReactDOMHydrationRoot.prototype.unmount = ReactDOMRoot.prototype.unmount = funct
   }
 };
 
-// 创建FiberRootNode
+// 创建FiberRootNode // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function createRoot(
   container: Element | Document | DocumentFragment,
   options?: CreateRootOptions,
@@ -239,7 +241,7 @@ export function createRoot(
   }
 
   // 创建FiberRootNode以及它的current属性FiberNode
-  const root = createContainer(
+  const root = createContainer( // react-reconciler/src/ReactFiberReconciler.new.js // ++++++++++++++++++++++++++++++++++++++
     container, // #root
     ConcurrentRoot, // 1
     null,
@@ -266,7 +268,7 @@ export function createRoot(
   // 监听所有支持的事件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  return new ReactDOMRoot(root); // 把FiberRootNode传入进去，存储它的实例的_internalRoot属性上
+  return new ReactDOMRoot(root); // 把FiberRootNode传入进去，存储它的实例的_internalRoot属性上 // ++++++++++++++++++++++++++++
   // 返回这个实例对象
   // ReactDOMRoot原型上有一个render函数可供调用
 }

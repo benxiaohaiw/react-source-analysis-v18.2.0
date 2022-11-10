@@ -504,12 +504,23 @@ export function createFiberFromTypeAndProps(
   mode: TypeOfMode,
   lanes: Lanes,
 ): Fiber {
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   let fiberTag = IndeterminateComponent; // 不确定的组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
   // The resolved type is set if we know what the final type will be. I.e. it's not lazy.
   let resolvedType = type; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
   if (typeof type === 'function') {
-    if (shouldConstruct(type)) {
-      fiberTag = ClassComponent;
+    /* 
+    function shouldConstruct(Component: Function) {
+  const prototype = Component.prototype;
+  return !!(prototype && prototype.isReactComponent);
+}
+    */
+    if (shouldConstruct(type)) { // type为类组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      fiberTag = ClassComponent; // 替换为ClassComponent // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
       if (__DEV__) {
         resolvedType = resolveClassForHotReloading(resolvedType);
       }
@@ -638,7 +649,9 @@ export function createFiberFromTypeAndProps(
       }
     }
   }
-
+  // 函数式组件的话这里的fiberTag就是IndeterminateComponent
+  // 而类组件的话这里直接为ClassComponent // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  
   const fiber = createFiber(fiberTag, pendingProps, key, mode); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   fiber.elementType = type; // 元素类型
   fiber.type = resolvedType;

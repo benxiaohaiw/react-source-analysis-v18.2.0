@@ -197,7 +197,7 @@ function getHighestPriorityLanes(lanes: Lanes | Lane): Lanes {
   }
 }
 
-// 获取下一车道
+// 获取下一车道 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function getNextLanes(root: FiberRoot, wipLanes: Lanes): Lanes {
   // Early bailout if there's no pending work left.
 
@@ -498,7 +498,7 @@ export function includesOnlyTransitions(lanes: Lanes): boolean {
   return (lanes & TransitionLanes) === lanes;
 }
 
-// 是否包含阻塞车道
+// 是否包含阻塞车道 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function includesBlockingLane(root: FiberRoot, lanes: Lanes): boolean {
   if (
     allowConcurrentByDefault &&
@@ -514,11 +514,11 @@ export function includesBlockingLane(root: FiberRoot, lanes: Lanes): boolean {
     InputContinuousHydrationLane |
     InputContinuousLane |
     DefaultHydrationLane |
-    DefaultLane; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    DefaultLane; // 16 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   return (lanes & SyncDefaultLanes) !== NoLanes; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
-// 是否包含root的过期车道集合
+// 是否包含root的过期车道集合 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function includesExpiredLane(root: FiberRoot, lanes: Lanes): boolean {
   // This is a separate check from includesBlockingLane because a lane can
   // expire after a render has already started.

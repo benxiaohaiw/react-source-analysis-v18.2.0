@@ -902,7 +902,7 @@ export function isUnsafeClassRenderPhaseUpdate(fiber: Fiber): boolean {
 // exiting a task.
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++==
 // 确保root是被调度的 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
+function ensureRootIsScheduled(root: FiberRoot, currentTime: number) { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   const existingCallbackNode = root.callbackNode; // FiberRootNode上是否存储了callbackNode - 它表示存在的callbackNode
 
   // 检查是否有任何车道被其他工作占用。如果是，请将它们标记为过期了，所以我们知道接下来要处理这些。
@@ -1160,7 +1160,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) { // FiberRootNode 是否
   // bug we're still investigating. Once the bug in Scheduler is fixed,
   // we can remove this, since we track expiration ourselves.
   const shouldTimeSlice = // 是否应该时间切片
-    !includesBlockingLane(root, lanes) && // 是否包含阻塞车道
+    !includesBlockingLane(root, lanes) && // 是否包含阻塞车道 // !true // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !includesExpiredLane(root, lanes) && // 是否包含过期车道
     (disableSchedulerTimeoutInWorkLoop || !didTimeout); // 是否禁用调度器超时工作环 或者 没有超时
 
@@ -1767,12 +1767,12 @@ export function deferredUpdates<A>(fn: () => A): A {
   }
 }
 
-// 批量更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 批量更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function batchedUpdates<A, R>(fn: A => R, a: A): R {
   const prevExecutionContext = executionContext;
   executionContext |= BatchedContext; // 将执行上下文变为BatchedContext
   try {
-    return fn(a); // 执行fn函数 - 传入参数a // ++++++++++++++++++++++++++++++++++++++++++++++++++++
+    return fn(a); // 执行fn函数 - 传入参数a // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   } finally {
     executionContext = prevExecutionContext;
     // If there were legacy sync updates, flush them at the end of the outer
@@ -2160,6 +2160,7 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // 在prepareFreshStack函数中执行了finishQueueingConcurrentUpdates，它是重要的一个步骤 // +++++++++++++++++++++++++++++++++++++++++++++++++++
     // finishQueueingConcurrentUpdates这个函数实际上是去处理update环形链表的 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 其实就是把update对象形成一个环形链表，然后把它挂载到current.updateQueue.shared.pending属性上（packages/react-reconciler/src/ReactFiberReconciler.new.js下的updateContainer）
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 

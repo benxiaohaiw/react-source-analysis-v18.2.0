@@ -246,6 +246,7 @@ function findHostInstanceWithWarning(
   return findHostInstance(component);
 }
 
+// 创建容器 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function createContainer(
   containerInfo: Container,
   tag: RootTag,
@@ -258,7 +259,9 @@ export function createContainer(
 ): OpaqueRoot {
   const hydrate = false;
   const initialChildren = null;
-  return createFiberRoot(
+
+  // ./ReactFiberRoot.new.js // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  return createFiberRoot( // // 创建FiberRootNode以及它的current属性FiberNode
     containerInfo, // #root
     tag, // ConcurrentRoot 1
     hydrate, // false
@@ -320,7 +323,7 @@ export function createHydrationContainer(
   return root;
 }
 
-// 更新容器
+// 更新容器 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function updateContainer(
   element: ReactNodeList,
   container: OpaqueRoot,
@@ -335,6 +338,7 @@ export function updateContainer(
   // 请求更新优先级
   // DefaultEventPriority 16
   const lane = requestUpdateLane(current); // 16
+  // 正常情况下没有event发生，那么就是默认事件优先级 16 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   if (enableSchedulingProfiler) {
     markRenderScheduled(lane);
@@ -376,10 +380,13 @@ export function updateContainer(
   //   "callback": null,
   //   "next": null
   // }
-  const update = createUpdate(eventTime, lane);
+  const update = createUpdate(eventTime, lane); // 创建update对象 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
   // Caution: React DevTools currently depends on this property
   // being called "element".
   update.payload = {element}; // 把{$$typeof: Symbol(react.element), type: f App, props: {children?}}存入payload属性中
+  // 把vnode放在update的payload属性上 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   callback = callback === undefined ? null : callback;
   if (callback !== null) {
@@ -392,14 +399,25 @@ export function updateContainer(
         );
       }
     }
-    update.callback = callback;
+    update.callback = callback; // cb也是放在update对象上 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
   // 入队更新
+  // ./ReactFiberClassUpdateQueue.new.js // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   const root = enqueueUpdate(current, update, lane); //  // 返回FiberRootNode
+  /* 
+  packages/react-reconciler/src/ReactFiberClassUpdateQueue.new.js
+  packages/react-reconciler/src/ReactFiberConcurrentUpdates.new.js
+
+  其实就是把update对象形成一个环形链表，然后把它挂载到current.updateQueue.shared.pending属性上
+  ...
+  */
+
   if (root !== null) {
     // 在fiber上调度更新
-    scheduleUpdateOnFiber(root, current, lane, eventTime);
+    // packages/react-reconciler/src/ReactFiberWorkLoop.new.js
+    // scheduleUpdateOnFiber -> ensureRootIsScheduled // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    scheduleUpdateOnFiber(root, current, lane, eventTime); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     entangleTransitions(root, current, lane);
   }
 

@@ -199,25 +199,40 @@ function applyDerivedStateFromProps(
   }
 }
 
+// 类组件更新器 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 const classComponentUpdater = {
-  isMounted,
-  enqueueSetState(inst, payload, callback) {
-    const fiber = getInstance(inst);
+  isMounted, // 是否已挂载 // +++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  enqueueSetState(inst, payload, callback) { // 组件实例 对象 函数
+    const fiber = getInstance(inst); // 获取组件实例对应的fiber对象
     const eventTime = requestEventTime();
-    const lane = requestUpdateLane(fiber);
+    const lane = requestUpdateLane(fiber); // 请求更新车道
+    /* 
+    在react下的click，那么这个lane就是为1 同步车道
+    脱离react比如setTimeout，那么这个lane为16 默认
+    */
 
-    const update = createUpdate(eventTime, lane);
-    update.payload = payload;
+    const update = createUpdate(eventTime, lane); // 创建更新update对象
+    // 通过此函数创建的update对象它的tag为UpdateState // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    update.payload = payload; // 存放在update对象上
+
     if (callback !== undefined && callback !== null) {
       if (__DEV__) {
         warnOnInvalidCallback(callback, 'setState');
       }
-      update.callback = callback;
+      update.callback = callback; // 同样也是存在update对象上
     }
 
+    // 入队列更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ./ReactFiberClassUpdateQueue.new.js（enqueueUpdate -> enqueueConcurrentClassUpdate（./ReactFiberConcurrentUpdates.new.js））
     const root = enqueueUpdate(fiber, update, lane);
+    // 其实就是把update对象形成一个环形链表，然后把它挂载到fiber.updateQueue.shared.pending属性上 // ++++++++++++++++++++
+    // 返回FiberRootNode
+
     if (root !== null) {
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+      // 在fiber上进行调度更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      scheduleUpdateOnFiber(root, fiber, lane, eventTime); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       entangleTransitions(root, fiber, lane);
     }
 
@@ -305,6 +320,7 @@ const classComponentUpdater = {
   },
 };
 
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function checkShouldComponentUpdate(
   workInProgress,
   ctor,
@@ -359,6 +375,7 @@ function checkShouldComponentUpdate(
   return true;
 }
 
+// 对类实例进行检查
 function checkClassInstance(workInProgress: Fiber, ctor: any, newProps: any) {
   const instance = workInProgress.stateNode;
   if (__DEV__) {
@@ -579,16 +596,24 @@ function checkClassInstance(workInProgress: Fiber, ctor: any, newProps: any) {
   }
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function adoptClassInstance(workInProgress: Fiber, instance: any): void {
+  // 替换实例的更新器
   instance.updater = classComponentUpdater;
+  // 让fiber的stateNode存储该实例
   workInProgress.stateNode = instance;
+
+  // 实例需要访问fiber，以便它可以调度更新
   // The instance needs access to the fiber so that it can schedule updates
   setInstance(instance, workInProgress);
+
+
   if (__DEV__) {
     instance._reactInternalInstance = fakeInternalInstance;
   }
 }
 
+// 1.构造类实例 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function constructClassInstance(
   workInProgress: Fiber,
   ctor: any,
@@ -653,7 +678,10 @@ function constructClassInstance(
       : emptyContextObject;
   }
 
-  let instance = new ctor(props, context);
+  // 创建组件类实例
+  let instance = new ctor(props, context); // +++++++++++++++++++++++++++++++++++++++++++++++
+
+
   // Instantiate twice to help detect side-effects.
   if (__DEV__) {
     if (
@@ -669,11 +697,25 @@ function constructClassInstance(
     }
   }
 
+  // 实例身上的state属性
   const state = (workInProgress.memoizedState =
     instance.state !== null && instance.state !== undefined
       ? instance.state
       : null);
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   adoptClassInstance(workInProgress, instance);
+  /* 
+    // 替换实例的更新器
+  instance.updater = classComponentUpdater; // 替换实例上的更新器 // ++++++++++++++++++++++++++
+  // 让fiber的stateNode存储该实例
+  workInProgress.stateNode = instance;
+
+  // 实例需要访问fiber，以便它可以调度更新
+  // The instance needs access to the fiber so that it can schedule updates
+  setInstance(instance, workInProgress);
+  */
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   if (__DEV__) {
     if (typeof ctor.getDerivedStateFromProps === 'function' && state === null) {
@@ -822,6 +864,8 @@ function callComponentWillReceiveProps(
   }
 }
 
+// 2.挂载类实例 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 在以前从未渲染过的实例上调用挂载生命周期。
 // Invokes the mount life-cycles on a previously never rendered instance.
 function mountClassInstance(
   workInProgress: Fiber,
@@ -833,12 +877,33 @@ function mountClassInstance(
     checkClassInstance(workInProgress, ctor, newProps);
   }
 
-  const instance = workInProgress.stateNode;
+  const instance = workInProgress.stateNode; // 取出对应的类组件实例
   instance.props = newProps;
   instance.state = workInProgress.memoizedState;
   instance.refs = emptyRefsObject;
 
-  initializeUpdateQueue(workInProgress);
+  // 初始化updateQueue // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  initializeUpdateQueue(workInProgress); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  /* 
+  // packages/react-reconciler/src/ReactFiberClassUpdateQueue.new.js
+
+  // 初始化更新队列 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+export function initializeUpdateQueue<State>(fiber: Fiber): void {
+  const queue: UpdateQueue<State> = {
+    baseState: fiber.memoizedState, // 把fiber的上一次状态属性值存入更新队列的基础状态属性上
+    firstBaseUpdate: null,
+    lastBaseUpdate: null,
+    shared: { // 共享
+      pending: null,
+      lanes: NoLanes, // 0
+      hiddenCallbacks: null,
+    },
+    callbacks: null,
+  };
+  // 挂载到fiber的updateQueue属性上
+  fiber.updateQueue = queue;
+}
+  */
 
   const contextType = ctor.contextType;
   if (typeof contextType === 'object' && contextType !== null) {
@@ -881,7 +946,7 @@ function mountClassInstance(
 
   instance.state = workInProgress.memoizedState;
 
-  const getDerivedStateFromProps = ctor.getDerivedStateFromProps;
+  const getDerivedStateFromProps = ctor.getDerivedStateFromProps; // 类组件的静态方法
   if (typeof getDerivedStateFromProps === 'function') {
     applyDerivedStateFromProps(
       workInProgress,
@@ -900,22 +965,26 @@ function mountClassInstance(
     (typeof instance.UNSAFE_componentWillMount === 'function' ||
       typeof instance.componentWillMount === 'function')
   ) {
-    callComponentWillMount(workInProgress, instance);
+    callComponentWillMount(workInProgress, instance); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // If we had additional state updates during this life-cycle, let's
     // process them now.
-    processUpdateQueue(workInProgress, newProps, instance, renderLanes);
-    instance.state = workInProgress.memoizedState;
+    processUpdateQueue(workInProgress, newProps, instance, renderLanes); // +++++++++++++++++++++++++++++++++++++++
+    instance.state = workInProgress.memoizedState; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
-  if (typeof instance.componentDidMount === 'function') {
-    let fiberFlags: Flags = Update | LayoutStatic;
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (typeof instance.componentDidMount === 'function') { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    let fiberFlags: Flags = Update | LayoutStatic; // ++++++++++++++++++++++++++++++++
     if (__DEV__ && (workInProgress.mode & StrictEffectsMode) !== NoMode) {
-      fiberFlags |= MountLayoutDev;
+      fiberFlags |= MountLayoutDev; // +++++++++++++++++++++++++++++++++++++++++++++++
     }
-    workInProgress.flags |= fiberFlags;
+    workInProgress.flags |= fiberFlags; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 }
 
+// 恢复挂载类实例 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function resumeMountClassInstance(
   workInProgress: Fiber,
   ctor: any,
@@ -1061,6 +1130,7 @@ function resumeMountClassInstance(
   return shouldUpdate;
 }
 
+// 更新类实例 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // Invokes the update life-cycles and returns false if it shouldn't rerender.
 function updateClassInstance(
   current: Fiber,
@@ -1069,9 +1139,12 @@ function updateClassInstance(
   newProps: any,
   renderLanes: Lanes,
 ): boolean {
-  const instance = workInProgress.stateNode;
+  const instance = workInProgress.stateNode; // 类组件实例 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+  // 克隆updateQueue - 【浅克隆】
   cloneUpdateQueue(current, workInProgress);
+  // 就是把current的updateQueue克隆到wip的updateQueue上，注意这是一个【浅克隆】 // ++++++++++++++++++++++++++++++++++++++
+
 
   const unresolvedOldProps = workInProgress.memoizedProps;
   const oldProps =
@@ -1111,7 +1184,7 @@ function updateClassInstance(
       unresolvedOldProps !== unresolvedNewProps ||
       oldContext !== nextContext
     ) {
-      callComponentWillReceiveProps(
+      callComponentWillReceiveProps( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         workInProgress,
         instance,
         newProps,
@@ -1124,8 +1197,15 @@ function updateClassInstance(
 
   const oldState = workInProgress.memoizedState;
   let newState = (instance.state = oldState);
-  processUpdateQueue(workInProgress, newProps, instance, renderLanes);
-  newState = workInProgress.memoizedState;
+  processUpdateQueue(workInProgress, newProps, instance, renderLanes); // 处理更新队列 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 主要就是处理wip的updateQueue的
+  // 1.把wip.updateQueue.shared.pending = null
+  // 2.把partialState对象放置在wip的updateQueue.baseState上的
+  // 3.把partialState对象放置在wip的memoizedState上 // +++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // partialState
+  newState = workInProgress.memoizedState; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   if (
     unresolvedOldProps === unresolvedNewProps &&
@@ -1146,7 +1226,7 @@ function updateClassInstance(
         unresolvedOldProps !== current.memoizedProps ||
         oldState !== current.memoizedState
       ) {
-        workInProgress.flags |= Update;
+        workInProgress.flags |= Update; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
     }
     if (typeof instance.getSnapshotBeforeUpdate === 'function') {
@@ -1154,22 +1234,23 @@ function updateClassInstance(
         unresolvedOldProps !== current.memoizedProps ||
         oldState !== current.memoizedState
       ) {
-        workInProgress.flags |= Snapshot;
+        workInProgress.flags |= Snapshot; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
     }
     return false;
   }
 
   if (typeof getDerivedStateFromProps === 'function') {
-    applyDerivedStateFromProps(
+    applyDerivedStateFromProps( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       workInProgress,
       ctor,
       getDerivedStateFromProps,
       newProps,
     );
-    newState = workInProgress.memoizedState;
+    newState = workInProgress.memoizedState; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   const shouldUpdate =
     checkHasForceUpdateAfterProcessing() ||
     checkShouldComponentUpdate(
@@ -1190,6 +1271,7 @@ function updateClassInstance(
       current.dependencies !== null &&
       checkIfContextChanged(current.dependencies));
 
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (shouldUpdate) {
     // In order to support react-lifecycles-compat polyfilled components,
     // Unsafe lifecycles should not be invoked for components using the new APIs.
@@ -1199,18 +1281,22 @@ function updateClassInstance(
         typeof instance.componentWillUpdate === 'function')
     ) {
       if (typeof instance.componentWillUpdate === 'function') {
-        instance.componentWillUpdate(newProps, newState, nextContext);
+        instance.componentWillUpdate(newProps, newState, nextContext); // +++++++++++++++++++++++++++++++++++++++++++++++++++
       }
       if (typeof instance.UNSAFE_componentWillUpdate === 'function') {
-        instance.UNSAFE_componentWillUpdate(newProps, newState, nextContext);
+        instance.UNSAFE_componentWillUpdate(newProps, newState, nextContext); // +++++++++++++++++++++++++++++++++++++++++++++++
       }
     }
+
+
     if (typeof instance.componentDidUpdate === 'function') {
-      workInProgress.flags |= Update;
+      workInProgress.flags |= Update; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
     if (typeof instance.getSnapshotBeforeUpdate === 'function') {
-      workInProgress.flags |= Snapshot;
+      workInProgress.flags |= Snapshot; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
+
+    
   } else {
     // If an update was already in progress, we should schedule an Update
     // effect even though we're bailing out, so that cWU/cDU are called.
@@ -1219,7 +1305,7 @@ function updateClassInstance(
         unresolvedOldProps !== current.memoizedProps ||
         oldState !== current.memoizedState
       ) {
-        workInProgress.flags |= Update;
+        workInProgress.flags |= Update; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
     }
     if (typeof instance.getSnapshotBeforeUpdate === 'function') {
@@ -1227,21 +1313,25 @@ function updateClassInstance(
         unresolvedOldProps !== current.memoizedProps ||
         oldState !== current.memoizedState
       ) {
-        workInProgress.flags |= Snapshot;
+        workInProgress.flags |= Snapshot; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
     }
 
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // If shouldComponentUpdate returned false, we should still update the
     // memoized props/state to indicate that this work can be reused.
     workInProgress.memoizedProps = newProps;
     workInProgress.memoizedState = newState;
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Update the existing instance's state, props, and context pointers even
   // if shouldComponentUpdate returns false.
   instance.props = newProps;
   instance.state = newState;
   instance.context = nextContext;
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   return shouldUpdate;
 }

@@ -1663,6 +1663,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
     } else {
       // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+      // ./ReactFiber.new.js
       const created = createFiberFromElement(element, returnFiber.mode, lanes); // 从元素创建fiber
       created.ref = coerceRef(returnFiber, currentFirstChild, element);
       created.return = returnFiber; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
