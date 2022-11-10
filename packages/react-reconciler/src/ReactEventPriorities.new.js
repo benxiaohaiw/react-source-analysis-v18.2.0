@@ -60,6 +60,7 @@ export function higherEventPriority(
   return a !== 0 && a < b ? a : b;
 }
 
+// 降低事件优先级
 export function lowerEventPriority(
   a: EventPriority,
   b: EventPriority,
@@ -67,6 +68,7 @@ export function lowerEventPriority(
   return a === 0 || a > b ? a : b;
 }
 
+// a < b
 export function isHigherEventPriority(
   a: EventPriority,
   b: EventPriority,
@@ -74,16 +76,26 @@ export function isHigherEventPriority(
   return a !== 0 && a < b;
 }
 
+// lanes转为事件优先级 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function lanesToEventPriority(lanes: Lanes): EventPriority {
+  // 获取最高优先级
   const lane = getHighestPriorityLane(lanes);
+
+  // DiscreteEventPriority < lane
   if (!isHigherEventPriority(DiscreteEventPriority, lane)) {
     return DiscreteEventPriority;
   }
+
+  // ContinuousEventPriority < lane
   if (!isHigherEventPriority(ContinuousEventPriority, lane)) {
     return ContinuousEventPriority;
   }
+
+  // 不包含IdleWork
   if (includesNonIdleWork(lane)) {
     return DefaultEventPriority;
   }
+
+  // 包含IdleWork
   return IdleEventPriority;
 }

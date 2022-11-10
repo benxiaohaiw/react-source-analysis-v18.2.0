@@ -321,13 +321,14 @@ function safelyDetachRef(current: Fiber, nearestMountedAncestor: Fiber | null) {
   }
 }
 
+// 安全的调用destroy函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function safelyCallDestroy(
   current: Fiber,
   nearestMountedAncestor: Fiber | null,
   destroy: () => void,
 ) {
   try {
-    destroy();
+    destroy(); // 直接执行，但是包含在一个try...catch块中进行执行它 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   } catch (error) {
     captureCommitPhaseError(current, nearestMountedAncestor, error);
   }
@@ -545,21 +546,33 @@ function commitBeforeMutationEffectsDeletion(deletion: Fiber) {
   }
 }
 
+// 提交卸载effect钩子函数列表
 function commitHookEffectListUnmount(
   flags: HookFlags,
   finishedWork: Fiber,
   nearestMountedAncestor: Fiber | null,
 ) {
-  const updateQueue: FunctionComponentUpdateQueue | null = (finishedWork.updateQueue: any);
+  const updateQueue: FunctionComponentUpdateQueue | null = (finishedWork.updateQueue: any); // 直接取出wip的updateQueue（在updateEffectImpl里面创建函数式组件的updateQueue）
+
+  // 直接通过函数式组件的updateQueue拿到它存储的最后一个effect，目的是为了直接能够通过next属性获取到effect环形链表的第一个effect元素
   const lastEffect = updateQueue !== null ? updateQueue.lastEffect : null;
+
+
   if (lastEffect !== null) {
-    const firstEffect = lastEffect.next;
+    const firstEffect = lastEffect.next; // 获取effect环形链表中第一个effect对象
     let effect = firstEffect;
+
+    // 下面直接遍历这个effect环形链表 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     do {
-      if ((effect.tag & flags) === flags) {
+      if ((effect.tag & flags) === flags) { // HookPassive | HookHasEffect（这个标记也是要有的）
+        // 卸载
         // Unmount
-        const destroy = effect.destroy;
-        effect.destroy = undefined;
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        const destroy = effect.destroy; // 取出它的destroy函数
+        effect.destroy = undefined; // 清空
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
         if (destroy !== undefined) {
           if (enableSchedulingProfiler) {
             if ((flags & HookPassive) !== NoHookEffect) {
@@ -574,7 +587,12 @@ function commitHookEffectListUnmount(
               setIsRunningInsertionEffect(true);
             }
           }
-          safelyCallDestroy(finishedWork, nearestMountedAncestor, destroy);
+
+
+          // 安全的调用destroy函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          safelyCallDestroy(finishedWork, nearestMountedAncestor, destroy); // +++++++++++++++++++++++++++++++++++++++++++
+          
+          
           if (__DEV__) {
             if ((flags & HookInsertion) !== NoHookEffect) {
               setIsRunningInsertionEffect(false);
@@ -590,18 +608,28 @@ function commitHookEffectListUnmount(
           }
         }
       }
-      effect = effect.next;
+      effect = effect.next; // 往下一个进行
     } while (effect !== firstEffect);
+
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 }
 
+// 提交挂载effect钩子列表 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
-  const updateQueue: FunctionComponentUpdateQueue | null = (finishedWork.updateQueue: any);
+  const updateQueue: FunctionComponentUpdateQueue | null = (finishedWork.updateQueue: any); // 取出函数式组件的updateQueue
+
+  // 通过queue拿到最后一个effect对象
   const lastEffect = updateQueue !== null ? updateQueue.lastEffect : null;
   if (lastEffect !== null) {
+
+
     // 环形链表
-    const firstEffect = lastEffect.next;
+    const firstEffect = lastEffect.next; // 通过最后一个effect的next直接获取环形链表的第一个effect对象
     let effect = firstEffect;
+
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // do while循环
     do {
       if ((effect.tag & flags) === flags) {
         if (enableSchedulingProfiler) {
@@ -612,6 +640,7 @@ function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
           }
         }
 
+        // 挂载 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // Mount
         const create = effect.create;
         if (__DEV__) {
@@ -619,7 +648,15 @@ function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
             setIsRunningInsertionEffect(true);
           }
         }
+
+
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         effect.destroy = create(); // 调用useEffect参数callback函数
+        // 注意：它返回的函数存放在当前对应的effect对象的destroy属性上，那么在updateEffectImpl中会去wip对应的current hook上的memoizedState（effect）
+        // 取出它的destroy属性函数然后pushEffect时传入wip的对应的effect的destroy属性上即可，那么在上面的commitHookEffectListUnmount中就能够执行啦 ~ // +++++++++++++++++++++++
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        
+        
         if (__DEV__) {
           if ((flags & HookInsertion) !== NoHookEffect) {
             setIsRunningInsertionEffect(false);
@@ -681,6 +718,8 @@ function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
       }
       effect = effect.next;
     } while (effect !== firstEffect);
+
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 }
 
@@ -1005,6 +1044,7 @@ function commitProfilerUpdate(finishedWork: Fiber, current: Fiber | null) {
   }
 }
 
+// 提交布局effect的 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function commitLayoutEffectOnFiber(
   finishedRoot: FiberRoot,
   current: Fiber | null,
@@ -1013,7 +1053,7 @@ function commitLayoutEffectOnFiber(
 ): void {
   // When updating this function, also update reappearLayoutEffects, which does
   // most of the same things when an offscreen tree goes from hidden -> visible.
-  const flags = finishedWork.flags;
+  const flags = finishedWork.flags; // 其实就是wip的flags // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   switch (finishedWork.tag) {
     case FunctionComponent:
     case ForwardRef:
@@ -1048,6 +1088,7 @@ function commitLayoutEffectOnFiber(
       break;
     }
     case HostRoot: {
+      // 递归迭代布局effects // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       recursivelyTraverseLayoutEffects(
         finishedRoot,
         finishedWork,
@@ -3120,6 +3161,7 @@ function commitReconciliationEffects(finishedWork: Fiber) {
   }
 }
 
+// 提交布局effects // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function commitLayoutEffects(
   finishedWork: Fiber,
   root: FiberRoot,
@@ -3129,18 +3171,23 @@ export function commitLayoutEffects(
   inProgressRoot = root;
 
   const current = finishedWork.alternate;
+
+  // 在fiber上提交布局effect // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   commitLayoutEffectOnFiber(root, current, finishedWork, committedLanes);
 
   inProgressLanes = null;
   inProgressRoot = null;
 }
 
+// 递归迭代布局effects // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function recursivelyTraverseLayoutEffects(
   root: FiberRoot,
   parentFiber: Fiber,
   lanes: Lanes,
 ) {
   const prevDebugFiber = getCurrentDebugFiberInDEV();
+  // packages/react-reconciler/src/ReactFiberFlags.js
+  // export const LayoutMask = Update | Callback | Ref | Visibility;
   if (parentFiber.subtreeFlags & LayoutMask) {
     let child = parentFiber.child;
     while (child !== null) {
@@ -3401,6 +3448,7 @@ function recursivelyTraverseReappearLayoutEffects(
   setCurrentDebugFiberInDEV(prevDebugFiber);
 }
 
+// 提交挂载effects钩子 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function commitHookPassiveMountEffects(
   finishedWork: Fiber,
   hookFlags: HookFlags,
@@ -3415,6 +3463,8 @@ function commitHookPassiveMountEffects(
     recordPassiveEffectDuration(finishedWork);
   } else {
     try {
+
+      // 提交挂载effect钩子列表 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       commitHookEffectListMount(hookFlags, finishedWork);
     } catch (error) {
       captureCommitPhaseError(finishedWork, finishedWork.return, error);
@@ -3562,6 +3612,7 @@ function commitTracingMarkerPassiveMountEffect(finishedWork: Fiber) {
   }
 }
 
+// 提交挂载effects
 export function commitPassiveMountEffects(
   root: FiberRoot,
   finishedWork: Fiber,
@@ -3569,6 +3620,8 @@ export function commitPassiveMountEffects(
   committedTransitions: Array<Transition> | null,
 ): void {
   setCurrentDebugFiberInDEV(finishedWork);
+
+  // 在fiber上进行提交挂载 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   commitPassiveMountOnFiber(
     root,
     finishedWork,
@@ -3578,6 +3631,7 @@ export function commitPassiveMountEffects(
   resetCurrentDebugFiberInDEV();
 }
 
+// 递归迭代挂载effects
 function recursivelyTraversePassiveMountEffects(
   root: FiberRoot,
   parentFiber: Fiber,
@@ -3585,10 +3639,17 @@ function recursivelyTraversePassiveMountEffects(
   committedTransitions: Array<Transition> | null,
 ) {
   const prevDebugFiber = getCurrentDebugFiberInDEV();
-  if (parentFiber.subtreeFlags & PassiveMask) {
+  /* 
+  packages/react-reconciler/src/ReactFiberFlags.js
+  export const PassiveMask = Passive | Visibility | ChildDeletion;
+  */
+  if (parentFiber.subtreeFlags & PassiveMask) { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     let child = parentFiber.child;
     while (child !== null) {
       setCurrentDebugFiberInDEV(child);
+
+
+      // 在fiber上提交挂载 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       commitPassiveMountOnFiber(
         root,
         child,
@@ -3601,6 +3662,7 @@ function recursivelyTraversePassiveMountEffects(
   setCurrentDebugFiberInDEV(prevDebugFiber);
 }
 
+// 在fiber上进行提交挂载
 function commitPassiveMountOnFiber(
   finishedRoot: FiberRoot,
   finishedWork: Fiber,
@@ -3612,7 +3674,7 @@ function commitPassiveMountOnFiber(
   // or when toggling effects inside a hidden tree.
   const flags = finishedWork.flags;
   switch (finishedWork.tag) {
-    case FunctionComponent:
+    case FunctionComponent: // 函数式组件
     case ForwardRef:
     case SimpleMemoComponent: {
       recursivelyTraversePassiveMountEffects(
@@ -3621,7 +3683,11 @@ function commitPassiveMountOnFiber(
         committedLanes,
         committedTransitions,
       );
-      if (flags & Passive) {
+
+
+      if (flags & Passive) { // Passive
+
+        // 提交挂载effects钩子 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         commitHookPassiveMountEffects(
           finishedWork,
           HookPassive | HookHasEffect,
@@ -3630,6 +3696,8 @@ function commitPassiveMountOnFiber(
       break;
     }
     case HostRoot: {
+
+      // 递归迭代挂载effects // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       recursivelyTraversePassiveMountEffects(
         finishedRoot,
         finishedWork,
@@ -4096,9 +4164,12 @@ function commitAtomicPassiveEffects(
   }
 }
 
+
+// 提交useEffet中的返回的卸载effects函数 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function commitPassiveUnmountEffects(finishedWork: Fiber): void {
   setCurrentDebugFiberInDEV(finishedWork);
-  commitPassiveUnmountOnFiber(finishedWork);
+  // 在fiber上进行提交卸载
+  commitPassiveUnmountOnFiber(finishedWork); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   resetCurrentDebugFiberInDEV();
 }
 
@@ -4132,6 +4203,7 @@ function detachAlternateSiblings(parentFiber: Fiber) {
   }
 }
 
+// 提交卸载effects钩子函数
 function commitHookPassiveUnmountEffects(
   finishedWork: Fiber,
   nearestMountedAncestor,
@@ -4146,14 +4218,17 @@ function commitHookPassiveUnmountEffects(
     );
     recordPassiveEffectDuration(finishedWork);
   } else {
+
+    // 提交卸载effect钩子列表 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     commitHookEffectListUnmount(
-      hookFlags,
+      hookFlags, // HookPassive | HookHasEffect
       finishedWork,
       nearestMountedAncestor,
     );
   }
 }
 
+// 递归迭代卸载effects
 function recursivelyTraversePassiveUnmountEffects(parentFiber: Fiber): void {
   // Deletions effects can be scheduled on any fiber type. They need to happen
   // before the children effects have fired.
@@ -4176,28 +4251,39 @@ function recursivelyTraversePassiveUnmountEffects(parentFiber: Fiber): void {
 
   const prevDebugFiber = getCurrentDebugFiberInDEV();
   // TODO: Split PassiveMask into separate masks for mount and unmount?
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (parentFiber.subtreeFlags & PassiveMask) {
     let child = parentFiber.child;
     while (child !== null) {
       setCurrentDebugFiberInDEV(child);
-      commitPassiveUnmountOnFiber(child);
+
+      // 在fiber上提交卸载
+      commitPassiveUnmountOnFiber(child); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       child = child.sibling;
     }
   }
   setCurrentDebugFiberInDEV(prevDebugFiber);
 }
 
+// 在fiber上提交卸载
 function commitPassiveUnmountOnFiber(finishedWork: Fiber): void {
   switch (finishedWork.tag) {
     case FunctionComponent:
     case ForwardRef:
     case SimpleMemoComponent: {
+
+      // 递归迭代卸载effects
       recursivelyTraversePassiveUnmountEffects(finishedWork);
+
+      // 在useEffect函数在会对wip的flags加上这个Passive标记的 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
       if (finishedWork.flags & Passive) {
+
+        // 提交卸载effects钩子函数 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         commitHookPassiveUnmountEffects(
           finishedWork,
           finishedWork.return,
-          HookPassive | HookHasEffect,
+          HookPassive | HookHasEffect, // 标记
         );
       }
       break;
@@ -4229,6 +4315,8 @@ function commitPassiveUnmountOnFiber(finishedWork: Fiber): void {
       break;
     }
     default: {
+
+      // 直接执行递归迭代卸载effects // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       recursivelyTraversePassiveUnmountEffects(finishedWork);
       break;
     }

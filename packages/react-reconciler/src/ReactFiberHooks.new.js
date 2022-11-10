@@ -799,7 +799,7 @@ function updateWorkInProgressHook(): Hook {
 
 // NOTE: defining two versions of this function to avoid size impact when this feature is disabled.
 // Previously this function was inlined, the additional `memoCache` property makes it not inlined.
-let createFunctionComponentUpdateQueue: () => FunctionComponentUpdateQueue;
+let createFunctionComponentUpdateQueue: () => FunctionComponentUpdateQueue; // 创建函数式组件updateQueue // +++++++++++++++++++++++++++++
 if (enableUseMemoCacheHook) {
   createFunctionComponentUpdateQueue = () => {
     return {
@@ -1790,31 +1790,62 @@ function rerenderState<S>(
   return rerenderReducer(basicStateReducer, (initialState: any));
 }
 
+// 推入effect // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function pushEffect(tag, create, destroy, deps: Array<mixed> | void | null) {
+
+  // 准给effect对象
   const effect: Effect = {
-    tag,
-    create,
+    tag, // HookHasEffect | HookPassive
+    create, // cb
     destroy,
-    deps,
+    deps, // 依赖
     // Circular
     next: (null: any),
   };
-  let componentUpdateQueue: null | FunctionComponentUpdateQueue = (currentlyRenderingFiber.updateQueue: any);
+  
+
+  // 在renderWithHooks函数中会给wip的updateQueue置为null的 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  let componentUpdateQueue: null | FunctionComponentUpdateQueue = (currentlyRenderingFiber.updateQueue: any); // wip的updateQueue
+
+
   if (componentUpdateQueue === null) {
+
+    // 创建函数式组件updateQueue
     componentUpdateQueue = createFunctionComponentUpdateQueue();
-    currentlyRenderingFiber.updateQueue = (componentUpdateQueue: any);
-    componentUpdateQueue.lastEffect = effect.next = effect;
+    /* 
+    返回这个对象
+    {
+      lastEffect: null,
+      events: null,
+      stores: null,
+      memoCache: null,
+    }
+    */
+
+    currentlyRenderingFiber.updateQueue = (componentUpdateQueue: any); // 放在wip的updateQueue属性上
+    componentUpdateQueue.lastEffect = effect.next = effect; // 让updateQueue始终指向环形链表的最后一个effect
+    // 构建环形链表 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
   } else {
+
     const lastEffect = componentUpdateQueue.lastEffect;
     if (lastEffect === null) {
-      componentUpdateQueue.lastEffect = effect.next = effect;
+      componentUpdateQueue.lastEffect = effect.next = effect; // 也是如同上面那样的
+
+
     } else {
+
+      // 构建环形链表，updateQueue的lastEffect始终指向最后一个effect对象
       const firstEffect = lastEffect.next;
       lastEffect.next = effect;
       effect.next = firstEffect;
       componentUpdateQueue.lastEffect = effect;
     }
+
   }
+
+  // 返回这个effect对象
   return effect;
 }
 
@@ -1909,57 +1940,115 @@ function updateRef<T>(initialValue: T): {current: T} {
   return hook.memoizedState;
 }
 
-// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 挂载effect实现
 function mountEffectImpl(
   fiberFlags,
   hookFlags,
   create,
   deps: Array<mixed> | void | null,
 ): void {
-  const hook = mountWorkInProgressHook();
-  const nextDeps = deps === undefined ? null : deps;
+  const hook = mountWorkInProgressHook(); // 其实就是在wip的memoizedState放置hook对象
+
+  const nextDeps = deps === undefined ? null : deps; // deps
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  currentlyRenderingFiber.flags |= fiberFlags; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  currentlyRenderingFiber.flags |= fiberFlags; // PassiveEffect | PassiveStaticEffect // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+  // 给hook对象的memoizedState属性赋值effect对象
+  // 这个函数实际上是创建effect环形链表且创建函数式组件的updateQueue挂载到wip的updateQueue属性上
+  /* 
+  给函数式组件创建的updateQueue属性
+  {
+      lastEffect: null,
+      events: null,
+      stores: null,
+      memoCache: null,
+    }
+  */
+  // 之后让updateQueue中的lastEffect指向effect环形链表的最后一个effect对象
   hook.memoizedState = pushEffect(
-    HookHasEffect | hookFlags,
+    HookHasEffect | hookFlags, // HookHasEffect | HookPassive
     create,
     undefined,
     nextDeps,
   );
 }
 
+// 更新effect实现 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateEffectImpl(
   fiberFlags,
   hookFlags,
   create,
   deps: Array<mixed> | void | null,
 ): void {
+  
   const hook = updateWorkInProgressHook();
+  // 主要还是复用current对应的hook对象的memoizedState
+  // 因为它在effect里面是存储着effect对象的
+  
+  // 另外还要注意wip的updateQueue（它在renderWithHooks中在执行Component函数之前已经被置为null了） // +++++++++++++++++++++++++++
+
+
   const nextDeps = deps === undefined ? null : deps;
   let destroy = undefined;
 
-  if (currentHook !== null) {
-    const prevEffect = currentHook.memoizedState;
-    destroy = prevEffect.destroy;
+  if (currentHook !== null) { // 此时current身上的hook对象
+    const prevEffect = currentHook.memoizedState; // 取出它的effect对象
+
+    // 在commitHookEffectListMount里面会去执行effect中的create函数，而这个函数返回的destroy函数直接存入到当时对应的effect中的destroy函数中
+    // 在那个时期来讲最终变为了current，那么所以说这里就能够取出这个对应的destory函数的
+    // 所以这里把它取出来然后放在了当前这个effect对象的destroy属性上，那么之后就可以提交卸载effect钩子函数啦 ~ // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    destroy = prevEffect.destroy; // 获取它的destory函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++0
+    
     if (nextDeps !== null) {
-      const prevDeps = prevEffect.deps;
-      if (areHookInputsEqual(nextDeps, prevDeps)) {
-        hook.memoizedState = pushEffect(hookFlags, create, destroy, nextDeps);
-        return;
+
+      const prevDeps = prevEffect.deps; // current的hook上的memoizedState指向的effect的deps数组
+      
+      if (areHookInputsEqual(nextDeps, prevDeps)) { // 比较这两个数组
+        // 一致的则提前 返回
+        hook.memoizedState = pushEffect(hookFlags /** HookPassive【没有HookHasEffect标记】 */, create, destroy, nextDeps);
+          // 给hook对象的memoizedState属性替换为新的effect对象
+  // 这个函数【还是】实际上是创建effect环形链表且创建函数式组件的updateQueue挂载到wip的updateQueue属性上（因为在renderWithHooks函数中会在执行Component函数之前对wip的updateQueue属性置为null的）
+  /* 
+  给函数式组件创建的updateQueue属性
+  {
+      lastEffect: null,
+      events: null,
+      stores: null,
+      memoCache: null,
+    }
+  */
+  // 之后让updateQueue中的lastEffect指向effect环形链表的最后一个effect对象
+        return; // 返回 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
     }
   }
 
-  currentlyRenderingFiber.flags |= fiberFlags;
+  // 注意在createWorkInProgress函数中wip的flags正常情况下会被赋值为0的 // ++++++++++++++++++++++++++++++++++++++++++++++++++
+  currentlyRenderingFiber.flags |= fiberFlags; // PassiveEffect
 
   hook.memoizedState = pushEffect(
-    HookHasEffect | hookFlags,
+    HookHasEffect | hookFlags, // HookHasEffect | HookPassive
     create,
     destroy,
     nextDeps,
   );
+  // 给hook对象的memoizedState属性替换为新的effect对象 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 这个函数【还是】实际上是创建effect环形链表且创建函数式组件的updateQueue挂载到wip的updateQueue属性上（***因为在renderWithHooks函数中会在执行Component函数之前对wip的updateQueue属性置为null的***）
+  /* 
+  给函数式组件创建的updateQueue属性
+  {
+      lastEffect: null,
+      events: null,
+      stores: null,
+      memoCache: null,
+    }
+  */
+  // 之后让updateQueue中的lastEffect指向effect环形链表的最后一个effect对象
 }
 
+// 挂载effect
 function mountEffect(
   create: () => (() => void) | void,
   deps: Array<mixed> | void | null,
@@ -1976,20 +2065,23 @@ function mountEffect(
       deps,
     );
   } else {
+    // 挂载effect实现 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     return mountEffectImpl(
-      PassiveEffect | PassiveStaticEffect,
-      HookPassive,
+      PassiveEffect | PassiveStaticEffect, /** ***** */
+      HookPassive, /** ***** */
       create,
       deps,
     );
   }
 }
 
+// 更新effect // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateEffect(
   create: () => (() => void) | void,
   deps: Array<mixed> | void | null,
 ): void {
-  return updateEffectImpl(PassiveEffect, HookPassive, create, deps);
+  return updateEffectImpl(PassiveEffect /** *就是packages/react-reconciler/src/ReactFiberFlags.js下的Passive* */, HookPassive /** *** */, create, deps); // 更新effect实现 // +++++++++++++++++++++++++++++++++++
 }
 
 function useEventImpl<Args, Return, F: (...Array<Args>) => Return>(
@@ -2916,6 +3008,7 @@ if (__DEV__) {
       mountHookTypesDev();
       return readContext(context);
     },
+    // OnMount期间的useEffect // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     useEffect(
       create: () => (() => void) | void,
       deps: Array<mixed> | void | null,
@@ -2923,7 +3016,7 @@ if (__DEV__) {
       currentHookNameInDev = 'useEffect';
       mountHookTypesDev();
       checkDepsAreArrayDev(deps);
-      return mountEffect(create, deps);
+      return mountEffect(create, deps); // 挂载effect // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
     useImperativeHandle<T>(
       ref: {current: T | null} | ((inst: T | null) => mixed) | null | void,
@@ -3238,13 +3331,37 @@ if (__DEV__) {
       updateHookTypesDev();
       return readContext(context);
     },
+
+    // OnUpdate期间的useEffect // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    /* 
+    function App() {
+      useEffct
+      useEffct
+    }
+    // App函数式组件对应的fiber的memoziedState其实就是一个hook链表
+    // hook1 -> hook2
+    // hook1.memoziedState -> 对应的effect1对象 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // hook2.memoziedState -> 对应的effect2对象 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 而对于在这个fiber的updateQueue上的lastEffct属性是形成了一个关于effect的环形链表（pushEffect中做的事情啦 ~）
+    // 这个lastEffect始终指向了这个effect环形链表的最后一个effect
+    // effect1 -> effect2 -> effect1
+    //              /\
+    //              |
+    //            lastEffect
+    // 这样的一个关系
+    // 下面就可在commitUnmount和commitMount时直接通过遍历updateQueue.lastEffect.next <- firstEffect
+    // do while firstEffect.next
+    // effect.destroy() - commitUnmount
+    // effect.create() -> destroy -> effect.destroy - commitMount
+    */
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     useEffect(
       create: () => (() => void) | void,
       deps: Array<mixed> | void | null,
     ): void {
       currentHookNameInDev = 'useEffect';
       updateHookTypesDev();
-      return updateEffect(create, deps);
+      return updateEffect(create, deps); // 更新effect +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
     useImperativeHandle<T>(
       ref: {current: T | null} | ((inst: T | null) => mixed) | null | void,

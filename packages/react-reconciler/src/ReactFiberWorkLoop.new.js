@@ -2869,13 +2869,23 @@ export function flushPassiveEffects(): boolean {
   // They're redundant.
   if (
     // &与运算符是两个为1才是1，一个为0就为0
+    /* 
+    packages/react-reconciler/src/ReactFiberFlags.js
+    export const PassiveMask = Passive | Visibility | ChildDeletion;
+    在packages/react-reconciler/src/ReactFiberHooks.new.js下useEffect中会给wip的flags加上Passive标记的
+    那所以说它的父级的subtreeFlags就会有这个标记的，那么这里就会通过的（completeUnitOfWork -> completeWork -> bubbleProperties中做的） // ++++++++++++++++++++++++++++++++++++++++++
+    */
     (finishedWork.subtreeFlags & PassiveMask /** 2064 -> (2064).toString(2) -> '100000010000' */) !== NoFlags || // 子树标记是否有PassiveMask
     (finishedWork.flags & PassiveMask) !== NoFlags // 或者其标记是否有PassiveMask
   ) {
     
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     if (!rootDoesHavePassiveEffects) { // !false
-      rootDoesHavePassiveEffects = true; // 标记为true // ++++++++++++++++++++++++++++++++++++++++++++
+
+
+      rootDoesHavePassiveEffects = true; // 标记为true // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      
+      
       pendingPassiveEffectsRemainingLanes = remainingLanes; // 赋值
       // workInProgressTransitions might be overwritten, so we want
       // to store it in pendingPassiveTransitions until they get processed
@@ -2885,15 +2895,30 @@ export function flushPassiveEffects(): boolean {
       // with setTimeout
       pendingPassiveTransitions = transitions; // 赋值
 
+
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // 正常调度优先级
       scheduleCallback(NormalSchedulerPriority, () => {
+
+
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // 刷新passiveEffects // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        flushPassiveEffects();
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        flushPassiveEffects(); // 【useEffect的回调是异步执行的且是宏任务】（因为这里用的是scheduleCallback而它正是postMessage产生的宏任务中执行的） // ++++++++++++++++++++++++++++++++++
+        // 这个flushPassiveEffects函数需要一个全局变量rootWithPendingPassiveEffects开关，而这个开关正是在下面根据rootDoesHavePassiveEffects标记来进行打开开关的
+        // 它会给这个标记赋值为FiberRootNode // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // +++++++++++++++++++++++++++++++++++++++++++++++
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // +++++++++++++++++++++++++++++++++++++++++++++++++
+      
+        
+        
         // This render triggered passive effects: release the root cache pool
         // *after* passive effects fire to avoid freeing a cache pool that may
         // be referenced by a node in the tree (HostRoot, Cache boundary etc)
         return null;
       });
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
 
   }
@@ -2909,6 +2934,10 @@ export function flushPassiveEffects(): boolean {
   // finishedWork.subtreeFlags是否有effects
   const subtreeHasEffects =
     (finishedWork.subtreeFlags &
+      /* 
+      packages/react-reconciler/src/ReactFiberFlags.js
+      export const PassiveMask = Passive | Visibility | ChildDeletion;
+      */
       (BeforeMutationMask | MutationMask | LayoutMask | PassiveMask)) /** 15990 -> (15990).toString(2) -> '11111001110110' */ !==
     NoFlags;
 
@@ -3023,6 +3052,7 @@ export function flushPassiveEffects(): boolean {
 
 
 
+    // 提交布局effects // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     commitLayoutEffects(finishedWork, root, lanes); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=++++++++++++++++++++++++++++
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -3073,14 +3103,40 @@ export function flushPassiveEffects(): boolean {
     }
   }
 
-  const rootDidHavePassiveEffects = rootDoesHavePassiveEffects;
 
-  if (rootDoesHavePassiveEffects) {
+
+
+
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  const rootDidHavePassiveEffects = rootDoesHavePassiveEffects; // 上面已经标记为true了
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 这个标记对于useEffect的cb以及它的destroy函数能否正常去执行来讲是非常重要的 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (rootDoesHavePassiveEffects) { // true
     // This commit has passive effects. Stash a reference to them. But don't
     // schedule a callback until after flushing layout work.
-    rootDoesHavePassiveEffects = false;
-    rootWithPendingPassiveEffects = root;
-    pendingPassiveEffectsLanes = lanes;
+    
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    rootDoesHavePassiveEffects = false; // 把rootDoesHavePassiveEffects再次调整为false // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    rootWithPendingPassiveEffects = root; // 把rootWithPendingPassiveEffects全局变量赋值为root也就是FiberRootNode // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    pendingPassiveEffectsLanes = lanes; // 也是重要的，在flushPassiveEfffects函数中会去使用的 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+
+    
+
   } else {
     // There were no passive effects, so we can immediately release the cache
     // pool for this render.
@@ -3281,7 +3337,8 @@ function releaseRootPooledCache(root: FiberRoot, remainingLanes: Lanes) {
   }
 }
 
-// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// 刷新PassiveEffects // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function flushPassiveEffects(): boolean {
   // Returns whether passive effects were flushed.
   // TODO: Combine this check with the one in flushPassiveEFfectsImpl. We should
@@ -3290,27 +3347,90 @@ export function flushPassiveEffects(): boolean {
   // `Scheduler.runWithPriority`, which accepts a function. But now we track the
   // priority within React itself, so we can mutate the variable directly.
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  if (rootWithPendingPassiveEffects !== null) { // rootWithPendingPassiveEffects这个全局变量 // ++++++++++++++++++++++++
+  // 那么它如果运行的话，它的值就会是FiberRootNode // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (rootWithPendingPassiveEffects !== null) { // rootWithPendingPassiveEffects这个全局变量其实就是FiberRootNode // ++++++++++++++++++++++++
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Cache the root since rootWithPendingPassiveEffects is cleared in
     // flushPassiveEffectsImpl
-    const root = rootWithPendingPassiveEffects;
+    
+    const root = rootWithPendingPassiveEffects; // FiberRootNode // ++++++++++++++++++++++++++++++++++++++++++++++++++++
+
     // Cache and clear the remaining lanes flag; it must be reset since this
     // method can be called from various places, not always from commitRoot
     // where the remaining lanes are known
     const remainingLanes = pendingPassiveEffectsRemainingLanes;
     pendingPassiveEffectsRemainingLanes = NoLanes;
 
-    const renderPriority = lanesToEventPriority(pendingPassiveEffectsLanes);
+    /* 
+    在react中的click事件对应的这个lanes是为1的
+    脱离react比如setTimeout那么这个lanes就为16
+    */
+    const renderPriority = lanesToEventPriority(pendingPassiveEffectsLanes); // pendingPassiveEffectsLanes就是在commitRootImpl里面的lanes
+    // 只不过这个lanes被保存在了pendingPassiveEffectsLanes这个变量中 // ++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 把lanes转为事件优先级 // +++++++++++++++++++++++++++++++++++++++++++++
+    // packages/react-reconciler/src/ReactEventPriorities.new.js
+    /* 
+    // lanes转为事件优先级 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+export function lanesToEventPriority(lanes: Lanes): EventPriority {
+  // 获取最高优先级
+  const lane = getHighestPriorityLane(lanes);
+
+  // DiscreteEventPriority < lane
+  if (!isHigherEventPriority(DiscreteEventPriority, lane)) {
+    return DiscreteEventPriority;
+  }
+
+  // ContinuousEventPriority < lane
+  if (!isHigherEventPriority(ContinuousEventPriority, lane)) {
+    return ContinuousEventPriority;
+  }
+
+  // 不包含IdleWork
+  if (includesNonIdleWork(lane)) {
+    return DefaultEventPriority;
+  }
+
+  // 包含IdleWork
+  return IdleEventPriority;
+}
+
+    */
+
+    /* 
+    在react中的click事件对应的这个lanes是为1的 -> 1
+    脱离react比如setTimeout那么这个lanes就为16 -> 16
+    */
+
+    // 根据默认事件优先级个这个得出的渲染优先级比较产生出比较低的事件优先级
     const priority = lowerEventPriority(DefaultEventPriority, renderPriority); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // packages/react-reconciler/src/ReactEventPriorities.new.js
+    /* 
+    // 降低事件优先级
+export function lowerEventPriority(
+  a: EventPriority,
+  b: EventPriority,
+): EventPriority {
+  return a === 0 || a > b ? a : b; // 注意：返回是大的一方
+}
+    */
+    /* 
+    在react中的click事件对应的这个lanes是为1的 -> 16
+    脱离react比如setTimeout那么这个lanes就为16 -> 16
+    */
+
     const prevTransition = ReactCurrentBatchConfig.transition;
     const previousPriority = getCurrentUpdatePriority();
 
     try {
       ReactCurrentBatchConfig.transition = null;
+      // 设置当前更新优先级 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       setCurrentUpdatePriority(priority); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 刷新PassiveEffects实现 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       return flushPassiveEffectsImpl(); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     } finally {
+
+      // 恢复之前的更新优先级 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       setCurrentUpdatePriority(previousPriority); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       ReactCurrentBatchConfig.transition = prevTransition;
 
@@ -3337,6 +3457,7 @@ export function enqueuePendingPassiveProfilerEffect(fiber: Fiber): void {
   }
 }
 
+// 刷新PassiveEffects实现 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function flushPassiveEffectsImpl() {
   if (rootWithPendingPassiveEffects === null) {
     return false;
@@ -3346,21 +3467,27 @@ function flushPassiveEffectsImpl() {
   const transitions = pendingPassiveTransitions;
   pendingPassiveTransitions = null;
 
-  const root = rootWithPendingPassiveEffects;
-  const lanes = pendingPassiveEffectsLanes;
-  rootWithPendingPassiveEffects = null;
+  const root = rootWithPendingPassiveEffects; // 取出FiberRootNode
+  const lanes = pendingPassiveEffectsLanes; // 取出commitRootImpl里面的lanes // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // 重置状态
+  rootWithPendingPassiveEffects = null; // 重置为null // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // TODO: This is sometimes out of sync with rootWithPendingPassiveEffects.
   // Figure out why and fix it. It's not causing any known issues (probably
   // because it's only used for profiling), but it's a refactor hazard.
-  pendingPassiveEffectsLanes = NoLanes;
+  pendingPassiveEffectsLanes = NoLanes; // 重置为0
 
   if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
     throw new Error('Cannot flush passive effects while already rendering.');
   }
 
   if (__DEV__) {
+
+    // 重置状态
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     isFlushingPassiveEffects = true;
     didScheduleUpdateDuringPassiveEffects = false;
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     if (enableDebugTracing) {
       logPassiveEffectsStarted(lanes);
@@ -3372,10 +3499,19 @@ function flushPassiveEffectsImpl() {
   }
 
   const prevExecutionContext = executionContext;
-  executionContext |= CommitContext;
+  executionContext |= CommitContext; // 把当前执行上下文变为提交上下文 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 先提交卸载effects
   commitPassiveUnmountEffects(root.current);
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // packages/react-reconciler/src/ReactFiberCommitWork.new.js
+
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  /// 再提交挂载effects
   commitPassiveMountEffects(root, root.current, lanes, transitions);
+  /// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // TODO: Move to commitPassiveMountEffects
   if (enableProfilerTimer && enableProfilerCommitHooks) {
@@ -3401,9 +3537,12 @@ function flushPassiveEffectsImpl() {
     commitDoubleInvokeEffectsInDEV(root, true);
   }
 
+  // 恢复之前的执行上下文
   executionContext = prevExecutionContext;
 
-  flushSyncCallbacks();
+  // 刷新同步cbs // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  flushSyncCallbacks(); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   if (enableTransitionTracing) {
     const prevPendingTransitionCallbacks = currentPendingTransitionCallbacks;
