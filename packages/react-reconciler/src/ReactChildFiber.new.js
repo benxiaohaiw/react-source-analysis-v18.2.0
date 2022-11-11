@@ -98,12 +98,22 @@ if (__DEV__) {
   };
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function coerceRef(
   returnFiber: Fiber,
   current: Fiber | null,
   element: ReactElement,
 ) {
-  const mixedRef = element.ref;
+  /* 
+  对于函数式组件中来讲
+  function App() {
+    const myRef = useRef()
+
+    <div ref={myRef}></div>
+  }
+  // 这个element中的ref属性其实就是这个myRef对象 - {current: initialValue}
+  */
+  const mixedRef = element.ref; // 是个对象
   if (
     mixedRef !== null &&
     typeof mixedRef !== 'function' &&
@@ -224,6 +234,8 @@ function coerceRef(
       }
     }
   }
+
+  /// 直接返回上面的那个对象 - {current: initialValue}
   return mixedRef;
 }
 
@@ -1665,7 +1677,13 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
       // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
       // ./ReactFiber.new.js
       const created = createFiberFromElement(element, returnFiber.mode, lanes); // 从元素创建fiber
+
+      // 对于函数式组件中使用useRef来讲 - <div ref={myRef}></div>
+      // 那么这个函数的返回值就是element.ref - 也就是这个{current: initialValue}
       created.ref = coerceRef(returnFiber, currentFirstChild, element);
+      // 那么这个fiber的ref属性就赋值这个对象了 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      
+      
       created.return = returnFiber; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       return created; // 返回这个fiber
     }

@@ -279,6 +279,7 @@ function safelyCallComponentWillUnmount(
 // Capture errors so they don't interrupt mounting.
 function safelyAttachRef(current: Fiber, nearestMountedAncestor: Fiber | null) {
   try {
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     commitAttachRef(current); // 提交附加ref // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   } catch (error) {
     captureCommitPhaseError(current, nearestMountedAncestor, error);
@@ -1163,6 +1164,8 @@ function commitLayoutEffectOnFiber(
     }
     // eslint-disable-next-line-no-fallthrough
     case HostSingleton:
+
+    // button div - 主机组件
     case HostComponent: {
       recursivelyTraverseLayoutEffects(
         finishedRoot,
@@ -1179,7 +1182,8 @@ function commitLayoutEffectOnFiber(
       }
 
       if (flags & Ref) {
-        safelyAttachRef(finishedWork, finishedWork.return);
+        // 安全的附加ref // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        safelyAttachRef(finishedWork, finishedWork.return); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
       break;
     }
@@ -1628,12 +1632,15 @@ function hideOrUnhideAllChildren(finishedWork, isHidden) {
 function commitAttachRef(finishedWork: Fiber) {
   const ref = finishedWork.ref;
   if (ref !== null) {
+    // 取出wip fiber的stateNode
     const instance = finishedWork.stateNode; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     let instanceToUse;
     switch (finishedWork.tag) {
       case HostResource:
       case HostSingleton:
-      case HostComponent:
+      case HostComponent: // 主机组件
+        // 获取公共的实例
+        // 这个函数就是直接返回这个instance // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         instanceToUse = getPublicInstance(instance); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         break;
       default:
@@ -1676,6 +1683,8 @@ function commitAttachRef(finishedWork: Fiber) {
       }
 
       // $FlowFixMe unable to narrow type to the non-function case
+      
+      // 直接ref.current设置进去这个真实dom元素 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       ref.current = instanceToUse; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
   }
@@ -2811,7 +2820,8 @@ function commitMutationEffectsOnFiber(
       if (flags & Ref) { // Ref标记
         if (current !== null) {
           // 安全的分离ref // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-          safelyDetachRef(current, current.return);
+          safelyDetachRef(current, current.return); // 安全的分离ref
+          // 其实就是current.ref.current = null这样形式的代码 // +++++++++++++++++++++++++++++++++++++++++++++++++++
         }
       }
       if (supportsMutation) {

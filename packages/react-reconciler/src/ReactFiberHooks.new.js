@@ -1871,8 +1871,11 @@ function getCallerStackFrame(): string {
     : stackFrames.slice(2, 3).join('\n');
 }
 
+// 挂载ref
 function mountRef<T>(initialValue: T): {current: T} {
   const hook = mountWorkInProgressHook();
+  // 形成hook链表
+
   if (enableUseRefAccessWarning) {
     if (__DEV__) {
       // Support lazy initialization pattern shown in docs.
@@ -1934,14 +1937,26 @@ function mountRef<T>(initialValue: T): {current: T} {
       return ref;
     }
   } else {
-    const ref = {current: initialValue};
+
+
+    const ref = {current: initialValue}; // 直接就是准备这个对象 - 对象中包含current属性，其值为value // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    // 还是将其放在hook对象的memoizedState属性上
     hook.memoizedState = ref;
+    
+    // 返回这个对象 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     return ref;
   }
 }
 
+// 更新ref
 function updateRef<T>(initialValue: T): {current: T} {
   const hook = updateWorkInProgressHook();
+  // 浅克隆
+  // 这里重要的还是memoizedState属性
+  // 其实就是current hook的memoizedState属性
+
+  // 直接返回这个对象 // {current: value} ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   return hook.memoizedState;
 }
 
@@ -3186,10 +3201,11 @@ if (__DEV__) {
         ReactCurrentDispatcher.current = prevDispatcher;
       }
     },
+    // OnMount期间的useRef
     useRef<T>(initialValue: T): {current: T} {
       currentHookNameInDev = 'useRef';
       mountHookTypesDev();
-      return mountRef(initialValue);
+      return mountRef(initialValue); // 挂载ref // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
     // OnMount期间的useState // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     useState<S>(
@@ -3530,10 +3546,11 @@ if (__DEV__) {
         ReactCurrentDispatcher.current = prevDispatcher;
       }
     },
+    // OnUpdate期间的useRef
     useRef<T>(initialValue: T): {current: T} {
       currentHookNameInDev = 'useRef';
       updateHookTypesDev();
-      return updateRef(initialValue);
+      return updateRef(initialValue); // 更新ref // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
     // OnUpdate期间的useState // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     useState<S>(

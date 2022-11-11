@@ -215,8 +215,9 @@ export function getChildHostContext(
   return getChildNamespace(parentNamespace, type);
 }
 
+// 获取的公共的实例
 export function getPublicInstance(instance: Instance): Instance {
-  return instance;
+  return instance; // 直接就是返回这个实例
 }
 
 export function prepareForCommit(containerInfo: Container): Object | null {

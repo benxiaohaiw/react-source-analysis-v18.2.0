@@ -1686,8 +1686,8 @@ function updateHostComponent( // button
     workInProgress.flags |= ContentReset; // 标记ContentReset // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
-  // 标记ref
-  markRef(current, workInProgress);
+  // 标记ref // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  markRef(current, workInProgress); // 给wip fiber的flags加上Ref和RefStatic标记 // +++++++++++++++++++++++++++++++++++++++++++++++++++
   /* 
   function markRef(current: Fiber | null, workInProgress: Fiber) {
   const ref = workInProgress.ref;
