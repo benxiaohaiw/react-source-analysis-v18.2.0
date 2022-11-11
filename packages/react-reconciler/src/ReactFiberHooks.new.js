@@ -2204,6 +2204,8 @@ function updateLayoutEffect(
   return updateEffectImpl(UpdateEffect /** ****** */, HookLayout /** ****** */, create, deps); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function imperativeHandleEffect<T>(
   create: () => T,
   ref: {current: T | null} | ((inst: T | null) => mixed) | null | void,
@@ -2216,7 +2218,11 @@ function imperativeHandleEffect<T>(
       refCallback(null);
     };
   } else if (ref !== null && ref !== undefined) {
-    const refObject = ref;
+
+
+    const refObject = ref; // {current: initialValue} // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
+    
     if (__DEV__) {
       if (!refObject.hasOwnProperty('current')) {
         console.error(
@@ -2226,14 +2232,21 @@ function imperativeHandleEffect<T>(
         );
       }
     }
-    const inst = create();
-    refObject.current = inst;
+
+
+    const inst = create(); // 直接执行cb函数返回实例
+    refObject.current = inst; // 直接作为current属性的值
+
+
+    // 返回的destroy函数
     return () => {
+      // 直接置为current为null即可啦 ~
       refObject.current = null;
     };
   }
 }
 
+// 挂载 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++==++++++++++++++++
 function mountImperativeHandle<T>(
   ref: {current: T | null} | ((inst: T | null) => mixed) | null | void,
   create: () => T,
@@ -2251,22 +2264,31 @@ function mountImperativeHandle<T>(
 
   // TODO: If deps are provided, should we skip comparing the ref itself?
   const effectDeps =
-    deps !== null && deps !== undefined ? deps.concat([ref]) : null;
+    deps !== null && deps !== undefined ? deps.concat([ref]) : null; // [dep, dep, ref]
 
-  let fiberFlags: Flags = UpdateEffect | LayoutStaticEffect;
+  let fiberFlags: Flags = UpdateEffect | LayoutStaticEffect; // 准备标记，【和useLayoutEffect的标记是一样的】 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (
     __DEV__ &&
     (currentlyRenderingFiber.mode & StrictEffectsMode) !== NoMode
   ) {
     fiberFlags |= MountLayoutDevEffect;
   }
+
+  // useEffect在挂载时使用的函数是一致的 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   return mountEffectImpl(
     fiberFlags,
-    HookLayout,
-    imperativeHandleEffect.bind(null, create, ref),
-    effectDeps,
+    HookLayout, // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    imperativeHandleEffect.bind(null, create, ref), // 绑定cb以及ref作为参数 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    effectDeps, // [dep, dep, ref]
   );
 }
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// https://reactjs.org/docs/hooks-reference.html#useimperativehandle
+
+// useImperativeHandle其实就是useRef以及useLayoutEffect的结合运用
+// 更新完dom之后执行用户的cb拿到结果放在ref.current属性上
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 function updateImperativeHandle<T>(
   ref: {current: T | null} | ((inst: T | null) => mixed) | null | void,
@@ -2285,12 +2307,13 @@ function updateImperativeHandle<T>(
 
   // TODO: If deps are provided, should we skip comparing the ref itself?
   const effectDeps =
-    deps !== null && deps !== undefined ? deps.concat([ref]) : null;
+    deps !== null && deps !== undefined ? deps.concat([ref]) : null; // [dep, dep, ref]
 
+  // 和useEffect在更新时使用的一样的函数 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   return updateEffectImpl(
     UpdateEffect,
-    HookLayout,
-    imperativeHandleEffect.bind(null, create, ref),
+    HookLayout, // 【和useLayoutEffect一致的】
+    imperativeHandleEffect.bind(null, create, ref), // 
     effectDeps,
   );
 }
@@ -3157,6 +3180,9 @@ if (__DEV__) {
       checkDepsAreArrayDev(deps);
       return mountEffect(create, deps); // 挂载effect // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
+
+    // OnMount期间的useImperativeHandle
+    // Imperative: 至关重要的 - 迫切, 急迫, 急切
     useImperativeHandle<T>(
       ref: {current: T | null} | ((inst: T | null) => mixed) | null | void,
       create: () => T,
@@ -3165,7 +3191,7 @@ if (__DEV__) {
       currentHookNameInDev = 'useImperativeHandle';
       mountHookTypesDev();
       checkDepsAreArrayDev(deps);
-      return mountImperativeHandle(ref, create, deps);
+      return mountImperativeHandle(ref, create, deps); // 挂载 // +++++++++++++++++++++++++++++++++++++++++++++++++
     },
     useInsertionEffect(
       create: () => (() => void) | void,
@@ -3506,6 +3532,7 @@ if (__DEV__) {
       updateHookTypesDev();
       return updateEffect(create, deps); // 更新effect +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
+    // // OnUpdate期间的useImperativeHandle
     useImperativeHandle<T>(
       ref: {current: T | null} | ((inst: T | null) => mixed) | null | void,
       create: () => T,
@@ -3513,7 +3540,7 @@ if (__DEV__) {
     ): void {
       currentHookNameInDev = 'useImperativeHandle';
       updateHookTypesDev();
-      return updateImperativeHandle(ref, create, deps);
+      return updateImperativeHandle(ref, create, deps); // 更新 // ++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
     useInsertionEffect(
       create: () => (() => void) | void,
