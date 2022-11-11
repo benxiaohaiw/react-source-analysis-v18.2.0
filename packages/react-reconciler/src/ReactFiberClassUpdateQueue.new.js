@@ -662,6 +662,18 @@ export function processUpdateQueue<State>(
           props,
           instance,
         ); // 其实就是{element};这个
+        /* 
+        对于setState来讲它产生的update对象简述为以下格式
+        {
+          ...
+          tag: UpdateState
+          payload: 对象或函数
+          callback: 函数
+        }
+        // 那么在上面的getStateFromUpdate函数中就会直接使用【对象】或进行【调用函数】然后【合并】得出newState
+        // 而这个callback如果存在则存入workInProgress.updateQueue.callbacks数组中
+        // 然后再给workInProgress fiber的flags加上Callback标记
+        */
 
         // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         const callback = update.callback; // update是否有cb
@@ -735,6 +747,7 @@ export function processUpdateQueue<State>(
   }
 }
 
+/// 调用cb
 function callCallback(callback, context) {
   if (typeof callback !== 'function') {
     throw new Error(
@@ -743,7 +756,7 @@ function callCallback(callback, context) {
     );
   }
 
-  callback.call(context);
+  callback.call(context); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 export function resetHasForceUpdateBeforeProcessing() {
@@ -789,16 +802,19 @@ export function commitHiddenCallbacks<State>(
   }
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function commitCallbacks<State>(
   updateQueue: UpdateQueue<State>,
   context: any,
 ): void {
-  const callbacks = updateQueue.callbacks;
+  const callbacks = updateQueue.callbacks; // 取出callbacks数组
+
   if (callbacks !== null) {
-    updateQueue.callbacks = null;
+    updateQueue.callbacks = null; // 置空
+    // 遍历数组
     for (let i = 0; i < callbacks.length; i++) {
       const callback = callbacks[i];
-      callCallback(callback, context);
+      callCallback(callback, context); // 调用cb // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
   }
 }

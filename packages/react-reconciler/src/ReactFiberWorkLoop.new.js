@@ -2981,7 +2981,7 @@ export function flushPassiveEffects(): boolean {
       finishedWork,
     );
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+    // 在commitBeforeMutationEffects里面【执行】类组件实例的getSnapshotBeforeUpdate生命周期函数（同步执行的）
 
 
 
@@ -3056,8 +3056,13 @@ export function flushPassiveEffects(): boolean {
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     commitLayoutEffects(finishedWork, root, lanes); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=++++++++++++++++++++++++++++
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
+    /* 
+    类组件实例对应的fiber workInProgress <-> current === null ? 在commitLayoutEffects里面【执行】类组件实例的componentDidMount生命周期函数（同步执行的）
+      : 在commitLayoutEffects里面【执行】类组件实例的componentDidUpdate生命周期函数（同步执行的）
+    
+    在commitLayoutEffects里面【执行】setState api的第二个参数函数（同步执行的）
+    */
+    
 
 
 

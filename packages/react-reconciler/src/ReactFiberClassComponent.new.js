@@ -321,7 +321,7 @@ const classComponentUpdater = {
 };
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-function checkShouldComponentUpdate(
+function checkShouldComponentUpdate( // 检查是否应该组件更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
   workInProgress,
   ctor,
   oldProps,
@@ -864,6 +864,10 @@ function callComponentWillReceiveProps(
   }
 }
 
+/* 
+packages/react-reconciler/src/ReactFiberBeginWork.new.js
+render阶段：beginWork -> updateClassComponent -> mountClassInstance
+*/
 // 2.挂载类实例 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // 在以前从未渲染过的实例上调用挂载生命周期。
 // Invokes the mount life-cycles on a previously never rendered instance.
@@ -948,7 +952,7 @@ export function initializeUpdateQueue<State>(fiber: Fiber): void {
 
   const getDerivedStateFromProps = ctor.getDerivedStateFromProps; // 类组件的静态方法
   if (typeof getDerivedStateFromProps === 'function') {
-    applyDerivedStateFromProps(
+    applyDerivedStateFromProps( // 【执行】类的getDerivedStateFromProps生命周期函数
       workInProgress,
       ctor,
       getDerivedStateFromProps,
@@ -965,6 +969,7 @@ export function initializeUpdateQueue<State>(fiber: Fiber): void {
     (typeof instance.UNSAFE_componentWillMount === 'function' ||
       typeof instance.componentWillMount === 'function')
   ) {
+    // 【执行】实例的componentWillMount、UNSAFE_componentWillMount生命周期函数（前提是类的getDerivedStateFromProps没有且实例的getSnapshotBeforeUpdate也没有）
     callComponentWillMount(workInProgress, instance); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // If we had additional state updates during this life-cycle, let's
     // process them now.
@@ -972,6 +977,8 @@ export function initializeUpdateQueue<State>(fiber: Fiber): void {
     instance.state = workInProgress.memoizedState; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
+
+  // 对于实例的componentDidMount生命周期函数在workInProgress的flags上加上Update | LayoutStatic这个标记
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (typeof instance.componentDidMount === 'function') { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++
     let fiberFlags: Flags = Update | LayoutStatic; // ++++++++++++++++++++++++++++++++
@@ -1130,6 +1137,29 @@ function resumeMountClassInstance(
   return shouldUpdate;
 }
 
+
+/* 
+https://www.yuque.com/benxiaohaiw/kvmb3r/zygh06#hZbqv
+
+commit阶段
+在commitRootImpl下
+  commitBeforeMutationEffects
+  // 在commitBeforeMutationEffects里面【执行】类组件实例的getSnapshotBeforeUpdate生命周期函数（同步执行的）
+
+  commitMutationEffects
+
+  commitLayoutEffects
+  类组件实例对应的fiber workInProgress <-> current === null ? 在commitLayoutEffects里面【执行】类组件实例的componentDidMount生命周期函数（同步执行的）
+    : 在commitLayoutEffects里面【执行】类组件实例的componentDidUpdate生命周期函数（同步执行的）
+
+  在commitLayoutEffects里面【执行】setState api的第二个参数函数（同步执行的）
+*/
+
+
+/* 
+packages/react-reconciler/src/ReactFiberBeginWork.new.js
+render阶段：beginWork -> updateClassComponent -> updateClassInstance
+*/
 // 更新类实例 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // Invokes the update life-cycles and returns false if it shouldn't rerender.
 function updateClassInstance(
@@ -1184,6 +1214,7 @@ function updateClassInstance(
       unresolvedOldProps !== unresolvedNewProps ||
       oldContext !== nextContext
     ) {
+      // 【执行】实例的componentWillReceiveProps、UNSAFE_componentWillReceiveProps生命周期函数（前提是没有类的getDerivedStateFromProps和实例的getSnapshotBeforeUpdate）
       callComponentWillReceiveProps( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         workInProgress,
         instance,
@@ -1202,11 +1233,33 @@ function updateClassInstance(
   // 1.把wip.updateQueue.shared.pending = null
   // 2.把partialState对象放置在wip的updateQueue.baseState上的
   // 3.把partialState对象放置在wip的memoizedState上 // +++++++++++++++++++++++++++++++++++++++++++++++++++
-  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  /* 
+  对于setState这个api共有两个参数
+  // 第一个参数可以是对象、函数
+  // 第二个参数是一个函数
+  */
+  
+  /* 
+  packages/react-reconciler/src/ReactFiberClassUpdateQueue.new.js中的processUpdateQueue函数
+  对于setState来讲它产生的update对象简述为以下格式
+  {
+    ...
+    tag: UpdateState
+    payload: 对象或函数
+    callback: 函数
+  }
+  // 那么在上面的getStateFromUpdate函数中就会直接使用【对象】或进行【调用函数】然后【合并】得出newState
+  // 而这个callback如果存在则存入workInProgress.updateQueue.callbacks数组中
+  // 然后再给workInProgress fiber的flags加上Callback标记
+  */
 
   // partialState
   newState = workInProgress.memoizedState; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+  // 不应该更新
+  // 若有实例的componentDidUpdate则将wip的flags加上Update标记
+  // 若有实例的getSnapshotBeforeUpdate则将wip的flags加上Snapshot标记
   if (
     unresolvedOldProps === unresolvedNewProps &&
     oldState === newState &&
@@ -1240,6 +1293,12 @@ function updateClassInstance(
     return false;
   }
 
+  // 应该更新代表着下面还要调用render函数然后reconcileChildren之后return workInProgress.child
+  // 而不应该更新表示直接return workInProgress.child.alternate（因为在createWorkInProgress中wip的child还是指向着current.child的，所以
+  // 它这里直接复用return wip.child = wip.child.alternate）
+
+  // 应该更新
+  // 【执行】getDerivedStateFromProps生命周期函数
   if (typeof getDerivedStateFromProps === 'function') {
     applyDerivedStateFromProps( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       workInProgress,
@@ -1253,7 +1312,7 @@ function updateClassInstance(
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   const shouldUpdate =
     checkHasForceUpdateAfterProcessing() ||
-    checkShouldComponentUpdate(
+    checkShouldComponentUpdate( // 【执行】实例的shouldComponentUpdate生命周期函数 // ++++++++++++++++++++++++++++++++++++++++++++++++
       workInProgress,
       ctor,
       oldProps,
@@ -1270,6 +1329,35 @@ function updateClassInstance(
       current !== null &&
       current.dependencies !== null &&
       checkIfContextChanged(current.dependencies));
+  /* 
+  function checkShouldComponentUpdate( // 检查是否应该组件更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  workInProgress,
+  ctor,
+  oldProps,
+  newProps,
+  oldState,
+  newState,
+  nextContext,
+) {
+  const instance = workInProgress.stateNode;
+  if (typeof instance.shouldComponentUpdate === 'function') {
+    let shouldUpdate = instance.shouldComponentUpdate(
+      newProps,
+      newState,
+      nextContext,
+    );
+    return shouldUpdate;
+  }
+
+  if (ctor.prototype && ctor.prototype.isPureReactComponent) { // PureComponent 浅比较 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
+    return (
+      !shallowEqual(oldProps, newProps) || !shallowEqual(oldState, newState)
+    );
+  }
+
+  return true;
+}
+  */
 
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (shouldUpdate) {
@@ -1280,6 +1368,7 @@ function updateClassInstance(
       (typeof instance.UNSAFE_componentWillUpdate === 'function' ||
         typeof instance.componentWillUpdate === 'function')
     ) {
+      /// 【执行】实例的componentWillUpdate、UNSAFE_componentWillUpdate生命周期函数（前提是没有类的getDerivedStateFromProps和实例的getSnapshotBeforeUpdate）
       if (typeof instance.componentWillUpdate === 'function') {
         instance.componentWillUpdate(newProps, newState, nextContext); // +++++++++++++++++++++++++++++++++++++++++++++++++++
       }
@@ -1289,6 +1378,8 @@ function updateClassInstance(
     }
 
 
+    // 若有实例的componentDidUpdate则将wip的flags加上Update标记
+    // 若有实例的getSnapshotBeforeUpdate则将wip的flags加上Snapshot标记
     if (typeof instance.componentDidUpdate === 'function') {
       workInProgress.flags |= Update; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
@@ -1298,6 +1389,10 @@ function updateClassInstance(
 
     
   } else {
+
+    // 若有实例的componentDidUpdate则将wip的flags加上Update标记
+    // 若有实例的getSnapshotBeforeUpdate则将wip的flags加上Snapshot标记
+
     // If an update was already in progress, we should schedule an Update
     // effect even though we're bailing out, so that cWU/cDU are called.
     if (typeof instance.componentDidUpdate === 'function') {

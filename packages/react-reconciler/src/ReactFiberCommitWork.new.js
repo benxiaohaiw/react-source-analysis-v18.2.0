@@ -372,6 +372,23 @@ function commitBeforeMutationEffects_begin() {
     }
 
     const child = fiber.child;
+
+    /* 
+    packages/react-reconciler/src/ReactFiberFlags.js
+    
+    export const BeforeMutationMask =
+    // TODO: Remove Update flag from before mutation phase by re-landing Visibility
+    // flag logic (see #20043)
+    Update |
+    Snapshot |
+    (enableCreateEventHandleAPI
+      ? // createEventHandle needs to visit deleted and hidden trees to
+        // fire beforeblur
+        // TODO: Only need to visit Deletions during BeforeMutation phase if an
+        // element is focused.
+        ChildDeletion | Visibility
+      : 0);
+    */
     if (
       (fiber.subtreeFlags & BeforeMutationMask) !== NoFlags &&
       child !== null
@@ -443,6 +460,7 @@ function commitBeforeMutationEffectsOnFiber(finishedWork: Fiber) {
     case SimpleMemoComponent: {
       break;
     }
+    // 类组件 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ClassComponent: {
       if ((flags & Snapshot) !== NoFlags) {
         if (current !== null) {
@@ -479,6 +497,7 @@ function commitBeforeMutationEffectsOnFiber(finishedWork: Fiber) {
               }
             }
           }
+          // 【执行】实例的getSnapshotBeforeUpdate生命周期函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++
           const snapshot = instance.getSnapshotBeforeUpdate(
             finishedWork.elementType === finishedWork.type
               ? prevProps
@@ -501,7 +520,11 @@ function commitBeforeMutationEffectsOnFiber(finishedWork: Fiber) {
       }
       break;
     }
+    // 主机root 其实就是workInProgress
     case HostRoot: {
+      // 注意：这是它的flags，不是subTreeFlags，一定要注意！！！
+      // 因为只有在completeWork时进行的bubbleProperties才进行的subTreeFlags，而并没有进行flags的变化。
+      // 一定要注意！！！
       if ((flags & Snapshot) !== NoFlags) {
         if (supportsMutation) {
           const root = finishedWork.stateNode;
@@ -858,7 +881,7 @@ function commitClassLayoutLifecycles(
       recordLayoutEffectDuration(finishedWork);
     } else {
       try {
-        instance.componentDidMount();
+        instance.componentDidMount(); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       } catch (error) {
         captureCommitPhaseError(finishedWork, finishedWork.return, error);
       }
@@ -913,7 +936,7 @@ function commitClassLayoutLifecycles(
       recordLayoutEffectDuration(finishedWork);
     } else {
       try {
-        instance.componentDidUpdate(
+        instance.componentDidUpdate( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
           prevProps,
           prevState,
           instance.__reactInternalSnapshotBeforeUpdate,
@@ -925,10 +948,11 @@ function commitClassLayoutLifecycles(
   }
 }
 
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function commitClassCallbacks(finishedWork: Fiber) {
   // TODO: I think this is now always non-null by the time it reaches the
   // commit phase. Consider removing the type check.
-  const updateQueue: UpdateQueue<mixed> | null = (finishedWork.updateQueue: any);
+  const updateQueue: UpdateQueue<mixed> | null = (finishedWork.updateQueue: any); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (updateQueue !== null) {
     const instance = finishedWork.stateNode;
     if (__DEV__) {
@@ -962,7 +986,8 @@ function commitClassCallbacks(finishedWork: Fiber) {
     // but instead we rely on them being set during last render.
     // TODO: revisit this when we implement resuming.
     try {
-      commitCallbacks(updateQueue, instance);
+      // ./ReactFiberClassUpdateQueue.new.js
+      commitCallbacks(updateQueue, instance); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     } catch (error) {
       captureCommitPhaseError(finishedWork, finishedWork.return, error);
     }
@@ -1068,6 +1093,7 @@ function commitLayoutEffectOnFiber(
       }
       break;
     }
+    // 类组件
     case ClassComponent: {
       recursivelyTraverseLayoutEffects(
         finishedRoot,
@@ -1075,15 +1101,16 @@ function commitLayoutEffectOnFiber(
         committedLanes,
       );
       if (flags & Update) {
-        commitClassLayoutLifecycles(finishedWork, current);
+        commitClassLayoutLifecycles(finishedWork, current); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
 
       if (flags & Callback) {
-        commitClassCallbacks(finishedWork);
+        commitClassCallbacks(finishedWork); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
 
       if (flags & Ref) {
-        safelyAttachRef(finishedWork, finishedWork.return);
+        // 安全的附加ref
+        safelyAttachRef(finishedWork, finishedWork.return); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
       break;
     }
@@ -3193,7 +3220,7 @@ function recursivelyTraverseLayoutEffects(
     while (child !== null) {
       setCurrentDebugFiberInDEV(child);
       const current = child.alternate;
-      commitLayoutEffectOnFiber(root, current, child, lanes);
+      commitLayoutEffectOnFiber(root, current, child, lanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       child = child.sibling;
     }
   }
