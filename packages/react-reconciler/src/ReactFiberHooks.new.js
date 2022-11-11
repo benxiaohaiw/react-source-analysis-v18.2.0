@@ -357,6 +357,7 @@ function throwInvalidHookError() {
   );
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function areHookInputsEqual(
   nextDeps: Array<mixed>,
   prevDeps: Array<mixed> | null,
@@ -396,9 +397,13 @@ function areHookInputsEqual(
     }
   }
   // $FlowFixMe[incompatible-use] found when upgrading Flow
+
+  // 循环遍历
   for (let i = 0; i < prevDeps.length && i < nextDeps.length; i++) {
     // $FlowFixMe[incompatible-use] found when upgrading Flow
-    if (is(nextDeps[i], prevDeps[i])) {
+
+
+    if (is(nextDeps[i], prevDeps[i])) { // shared/objectIs - 实际上是Object.is算法 api
       continue;
     }
     return false;
@@ -2271,26 +2276,106 @@ function mountDebugValue<T>(value: T, formatterFn: ?(value: T) => mixed): void {
 
 const updateDebugValue = mountDebugValue;
 
+// 挂载cb
 function mountCallback<T>(callback: T, deps: Array<mixed> | void | null): T {
-  const hook = mountWorkInProgressHook();
+
+  const hook = mountWorkInProgressHook(); // 在wip身上继续挂载一个hook对象，可能已经形成一个hook链表了
+  // wip.memoizedState = hook1 -> hook2
+  
   const nextDeps = deps === undefined ? null : deps;
-  hook.memoizedState = [callback, nextDeps];
+
+
+  hook.memoizedState = [callback, nextDeps]; // 直接做一个数组存放在hook对象的memoizedState属性上
+  
+  // 返回这个cb函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   return callback;
 }
 
+// 更新cb // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateCallback<T>(callback: T, deps: Array<mixed> | void | null): T {
+
   const hook = updateWorkInProgressHook();
+  // 形成一个hook链表，对于这个hook对象它是浅克隆current hook的
+  // 也就是说对于这里的hook.memoizedState实际上是current hook的memoizedState
+  // 它在这里是一个数组[cb, deps] - current
+  
+  
   const nextDeps = deps === undefined ? null : deps;
-  const prevState = hook.memoizedState;
-  if (prevState !== null) {
-    if (nextDeps !== null) {
-      const prevDeps: Array<mixed> | null = prevState[1];
-      if (areHookInputsEqual(nextDeps, prevDeps)) {
-        return prevState[0];
+
+  const prevState = hook.memoizedState; // current hook的memoizedState
+  
+  if (prevState !== null) { // 之前状态不为null
+    if (nextDeps !== null) { // 现在的deps不为null
+
+      const prevDeps: Array<mixed> | null = prevState[1]; // 之前的deps
+      
+      if (areHookInputsEqual(nextDeps, prevDeps)) { // 现在的deps和之前的deps如果是一样的
+        /* 
+        function areHookInputsEqual(
+  nextDeps: Array<mixed>,
+  prevDeps: Array<mixed> | null,
+) {
+  if (__DEV__) {
+    if (ignorePreviousDependencies) {
+      // Only true when this component is being hot reloaded.
+      return false;
+    }
+  }
+
+  if (prevDeps === null) {
+    if (__DEV__) {
+      console.error(
+        '%s received a final argument during this render, but not during ' +
+          'the previous render. Even though the final argument is optional, ' +
+          'its type cannot change between renders.',
+        currentHookNameInDev,
+      );
+    }
+    return false;
+  }
+
+  if (__DEV__) {
+    // Don't bother comparing lengths in prod because these arrays should be
+    // passed inline.
+    if (nextDeps.length !== prevDeps.length) {
+      console.error(
+        'The final argument passed to %s changed size between renders. The ' +
+          'order and size of this array must remain constant.\n\n' +
+          'Previous: %s\n' +
+          'Incoming: %s',
+        currentHookNameInDev,
+        `[${prevDeps.join(', ')}]`,
+        `[${nextDeps.join(', ')}]`,
+      );
+    }
+  }
+  // $FlowFixMe[incompatible-use] found when upgrading Flow
+
+  // 循环遍历
+  for (let i = 0; i < prevDeps.length && i < nextDeps.length; i++) {
+    // $FlowFixMe[incompatible-use] found when upgrading Flow
+
+    
+    if (is(nextDeps[i], prevDeps[i])) { // shared/objectIs - 实际上是Object.is算法 api // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+        */
+
+        // 那么直接返回的是之前的cb
+        return prevState[0]; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
     }
   }
-  hook.memoizedState = [callback, nextDeps];
+
+  // 变化了则
+  // 更新wip hook的memoizedState
+  hook.memoizedState = [callback, nextDeps]; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // 返回新的cb
   return callback;
 }
 
@@ -2997,11 +3082,12 @@ if (__DEV__) {
     readContext<T>(context: ReactContext<T>): T {
       return readContext(context);
     },
+    // OnMount期间的useCallback
     useCallback<T>(callback: T, deps: Array<mixed> | void | null): T {
       currentHookNameInDev = 'useCallback';
       mountHookTypesDev();
       checkDepsAreArrayDev(deps);
-      return mountCallback(callback, deps);
+      return mountCallback(callback, deps); // 挂载cb // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
     useContext<T>(context: ReactContext<T>): T {
       currentHookNameInDev = 'useContext';
@@ -3321,10 +3407,11 @@ if (__DEV__) {
     readContext<T>(context: ReactContext<T>): T {
       return readContext(context);
     },
+    // OnUpdate期间的useCallback
     useCallback<T>(callback: T, deps: Array<mixed> | void | null): T {
       currentHookNameInDev = 'useCallback';
       updateHookTypesDev();
-      return updateCallback(callback, deps);
+      return updateCallback(callback, deps); // 更新cb // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
     useContext<T>(context: ReactContext<T>): T {
       currentHookNameInDev = 'useContext';

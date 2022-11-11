@@ -17,6 +17,7 @@ function is(x: any, y: any) {
   );
 }
 
+// Object.is api
 const objectIs: (x: any, y: any) => boolean =
   // $FlowFixMe[method-unbinding]
   typeof Object.is === 'function' ? Object.is : is;
