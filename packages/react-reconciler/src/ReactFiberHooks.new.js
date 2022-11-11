@@ -2379,35 +2379,61 @@ function updateCallback<T>(callback: T, deps: Array<mixed> | void | null): T {
   return callback;
 }
 
+// 挂载memo
 function mountMemo<T>(
   nextCreate: () => T,
   deps: Array<mixed> | void | null,
 ): T {
   const hook = mountWorkInProgressHook();
+  // 形成hook链表
+
   const nextDeps = deps === undefined ? null : deps;
-  const nextValue = nextCreate();
-  hook.memoizedState = [nextValue, nextDeps];
+
+  const nextValue = nextCreate(); // 直接执行这个函数，使用它所返回的值
+
+
+  // 存储在hook对象的memoizedState属性上 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  hook.memoizedState = [nextValue, nextDeps]; // [cb的返回值, deps]
+  
+  // 返回cb执行的返回值
   return nextValue;
 }
 
+// 更新memo
 function updateMemo<T>(
   nextCreate: () => T,
   deps: Array<mixed> | void | null,
 ): T {
   const hook = updateWorkInProgressHook();
+  // 浅克隆current hook
+  // 这里也是主要是hook的memoizedState属性
+  // 因为其实它是current hook的memoizedState属性 - [val, deps] - current
+
   const nextDeps = deps === undefined ? null : deps;
-  const prevState = hook.memoizedState;
-  if (prevState !== null) {
+
+  const prevState = hook.memoizedState; // 之前的状态
+  
+  if (prevState !== null) { // 之前的状态不为null
     // Assume these are defined. If they're not, areHookInputsEqual will warn.
-    if (nextDeps !== null) {
-      const prevDeps: Array<mixed> | null = prevState[1];
-      if (areHookInputsEqual(nextDeps, prevDeps)) {
-        return prevState[0];
+    if (nextDeps !== null) { // 新的deps不为null
+
+      const prevDeps: Array<mixed> | null = prevState[1]; // 之前的deps
+      
+      if (areHookInputsEqual(nextDeps, prevDeps)) { // 循环遍历数组 - 使用Object.is算法一一按顺序位置进行比较
+        // 若是一样的那么直接采用之前的值
+        return prevState[0]; // 返回之前的值
       }
     }
   }
-  const nextValue = nextCreate();
-  hook.memoizedState = [nextValue, nextDeps];
+
+  // 不一样则
+  // 直接执行新的cb - 采用它的返回值
+  const nextValue = nextCreate(); // 新的返回值
+
+  // 【更新】hook的memoizedState属性
+  hook.memoizedState = [nextValue, nextDeps]; // 新的
+
+  // 返回新的value
   return nextValue;
 }
 
@@ -3132,6 +3158,7 @@ if (__DEV__) {
       checkDepsAreArrayDev(deps);
       return mountLayoutEffect(create, deps);
     },
+    // OnMount期间的useMemo
     useMemo<T>(create: () => T, deps: Array<mixed> | void | null): T {
       currentHookNameInDev = 'useMemo';
       mountHookTypesDev();
@@ -3139,7 +3166,7 @@ if (__DEV__) {
       const prevDispatcher = ReactCurrentDispatcher.current;
       ReactCurrentDispatcher.current = InvalidNestedHooksDispatcherOnMountInDEV;
       try {
-        return mountMemo(create, deps);
+        return mountMemo(create, deps); // 挂载memo // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       } finally {
         ReactCurrentDispatcher.current = prevDispatcher;
       }
@@ -3475,13 +3502,15 @@ if (__DEV__) {
       updateHookTypesDev();
       return updateLayoutEffect(create, deps);
     },
+
+    // OnUpdate期间的useMemo
     useMemo<T>(create: () => T, deps: Array<mixed> | void | null): T {
       currentHookNameInDev = 'useMemo';
       updateHookTypesDev();
       const prevDispatcher = ReactCurrentDispatcher.current;
       ReactCurrentDispatcher.current = InvalidNestedHooksDispatcherOnUpdateInDEV;
       try {
-        return updateMemo(create, deps);
+        return updateMemo(create, deps); // 更新memo // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       } finally {
         ReactCurrentDispatcher.current = prevDispatcher;
       }
