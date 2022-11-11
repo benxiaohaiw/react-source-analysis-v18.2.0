@@ -2171,25 +2171,37 @@ function updateInsertionEffect(
   return updateEffectImpl(UpdateEffect, HookInsertion, create, deps);
 }
 
+// 挂载布局effect
 function mountLayoutEffect(
   create: () => (() => void) | void,
   deps: Array<mixed> | void | null,
 ): void {
-  let fiberFlags: Flags = UpdateEffect | LayoutStaticEffect;
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  let fiberFlags: Flags = UpdateEffect | LayoutStaticEffect; // 准备fiber标记 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
   if (
     __DEV__ &&
     (currentlyRenderingFiber.mode & StrictEffectsMode) !== NoMode
   ) {
     fiberFlags |= MountLayoutDevEffect;
   }
-  return mountEffectImpl(fiberFlags, HookLayout, create, deps);
+
+  // 和useEffect在挂载使用的方法是一致的
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  return mountEffectImpl(fiberFlags /**  */, HookLayout /** ****** */, create, deps); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
+// 更新布局effect // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateLayoutEffect(
   create: () => (() => void) | void,
   deps: Array<mixed> | void | null,
 ): void {
-  return updateEffectImpl(UpdateEffect, HookLayout, create, deps);
+
+  // 和useEffect在更新使用的方法是一致的
+  // 更新布局effect实现
+  return updateEffectImpl(UpdateEffect /** ****** */, HookLayout /** ****** */, create, deps); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 function imperativeHandleEffect<T>(
@@ -3164,6 +3176,7 @@ if (__DEV__) {
       checkDepsAreArrayDev(deps);
       return mountInsertionEffect(create, deps);
     },
+    // // OnMount期间的useLayoutEffect
     useLayoutEffect(
       create: () => (() => void) | void,
       deps: Array<mixed> | void | null,
@@ -3171,7 +3184,7 @@ if (__DEV__) {
       currentHookNameInDev = 'useLayoutEffect';
       mountHookTypesDev();
       checkDepsAreArrayDev(deps);
-      return mountLayoutEffect(create, deps);
+      return mountLayoutEffect(create, deps); // 挂载布局effect // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
     // OnMount期间的useMemo
     useMemo<T>(create: () => T, deps: Array<mixed> | void | null): T {
@@ -3510,13 +3523,14 @@ if (__DEV__) {
       updateHookTypesDev();
       return updateInsertionEffect(create, deps);
     },
+    // OnUpdate期间的useLayoutEffect
     useLayoutEffect(
       create: () => (() => void) | void,
       deps: Array<mixed> | void | null,
     ): void {
       currentHookNameInDev = 'useLayoutEffect';
       updateHookTypesDev();
-      return updateLayoutEffect(create, deps);
+      return updateLayoutEffect(create, deps); // 更新布局effect // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
 
     // OnUpdate期间的useMemo

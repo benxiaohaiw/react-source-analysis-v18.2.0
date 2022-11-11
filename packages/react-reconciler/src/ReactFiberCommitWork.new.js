@@ -814,6 +814,7 @@ export function commitPassiveEffectDurations(
   }
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function commitHookLayoutEffects(finishedWork: Fiber, hookFlags: HookFlags) {
   // At this point layout effects have already been destroyed (during mutation phase).
   // This is done to prevent sibling component effects from interfering with each other,
@@ -829,6 +830,9 @@ function commitHookLayoutEffects(finishedWork: Fiber, hookFlags: HookFlags) {
     recordLayoutEffectDuration(finishedWork);
   } else {
     try {
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 同步的 - 是在【更新完真实dom之后】提交执行的
+      // 提交useLayoutEffect的挂载函数
       commitHookEffectListMount(hookFlags, finishedWork);
     } catch (error) {
       captureCommitPhaseError(finishedWork, finishedWork.return, error);
@@ -1081,7 +1085,7 @@ function commitLayoutEffectOnFiber(
   // most of the same things when an offscreen tree goes from hidden -> visible.
   const flags = finishedWork.flags; // 其实就是wip的flags // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   switch (finishedWork.tag) {
-    case FunctionComponent:
+    case FunctionComponent: // 函数式组件
     case ForwardRef:
     case SimpleMemoComponent: {
       recursivelyTraverseLayoutEffects(
@@ -1090,6 +1094,9 @@ function commitLayoutEffectOnFiber(
         committedLanes,
       );
       if (flags & Update) {
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // 同步的 - 是在【更新完真实dom之后】提交执行的
+        // 提交useLayoutEffect的挂载函数
         commitHookLayoutEffects(finishedWork, HookLayout | HookHasEffect);
       }
       break;
@@ -1683,7 +1690,7 @@ function commitAttachRef(finishedWork: Fiber) {
       }
 
       // $FlowFixMe unable to narrow type to the non-function case
-      
+
       // 直接ref.current设置进去这个真实dom元素 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       ref.current = instanceToUse; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
@@ -2729,6 +2736,9 @@ function commitMutationEffectsOnFiber(
           recordLayoutEffectDuration(finishedWork);
         } else {
           try {
+
+            // 同步的 - 是在【更新完真实dom之后】提交执行的
+            // 提交useLayoutEffect的卸载函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             commitHookEffectListUnmount(
               HookLayout | HookHasEffect,
               finishedWork,
