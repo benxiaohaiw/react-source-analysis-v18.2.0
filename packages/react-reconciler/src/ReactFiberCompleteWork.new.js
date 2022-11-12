@@ -770,9 +770,11 @@ function bubbleProperties(completedWork: Fiber) {
       // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       let child = completedWork.child;
       while (child !== null) {
-        newChildLanes = mergeLanes(
+
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        newChildLanes = mergeLanes( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
           newChildLanes,
-          mergeLanes(child.lanes, child.childLanes),
+          mergeLanes(child.lanes, child.childLanes), // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         );
 
         // "Static" flags share the lifetime of the fiber/hook they belong to,
@@ -799,7 +801,7 @@ function bubbleProperties(completedWork: Fiber) {
   }
 
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  completedWork.childLanes = newChildLanes;
+  completedWork.childLanes = newChildLanes; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   return didBailout;

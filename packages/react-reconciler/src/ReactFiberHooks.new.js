@@ -2487,16 +2487,31 @@ function updateMemo<T>(
   return nextValue;
 }
 
+// 挂载推迟的值
 function mountDeferredValue<T>(value: T): T {
   const hook = mountWorkInProgressHook();
-  hook.memoizedState = value;
+  // 形成hook链表
+
+  hook.memoizedState = value; // 直接把value放在hook对象的memoizedState属性上
+
+  // 返回value值 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
   return value;
 }
 
+
+// 更新推迟的值
 function updateDeferredValue<T>(value: T): T {
   const hook = updateWorkInProgressHook();
-  const resolvedCurrentHook: Hook = (currentHook: any);
-  const prevValue: T = resolvedCurrentHook.memoizedState;
+  // 浅克隆
+  // 主要时hook对象的memoizedState属性 - 其实就是current hook的memoizedState属性
+  // 就是之前的value
+
+  const resolvedCurrentHook: Hook = (currentHook: any); // current hook
+
+  const prevValue: T = resolvedCurrentHook.memoizedState; // 取出之前的value // ++++++++++++++++++++++++++++++++++++++++++++++
+
+
+  /// 更新推迟的值实现 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   return updateDeferredValueImpl(hook, prevValue, value);
 }
 
@@ -2513,31 +2528,243 @@ function rerenderDeferredValue<T>(value: T): T {
   }
 }
 
+/// 更新推迟的值实现
 function updateDeferredValueImpl<T>(hook: Hook, prevValue: T, value: T): T {
-  const shouldDeferValue = !includesOnlyNonUrgentLanes(renderLanes);
+
+  /* 
+  在renderWithHooks中
+    renderLanes = nextRenderLanes;
+  */
+
+  // urgent: 紧迫的
+  const shouldDeferValue = !includesOnlyNonUrgentLanes(renderLanes); // renderLanes表示当前渲染车道集合 // ++++++++++++++++++++++++++++++++++++++++++
+  /* 
+  export function includesOnlyNonUrgentLanes(lanes: Lanes): boolean {
+    const UrgentLanes = SyncLane | InputContinuousLane | DefaultLane;
+    return (lanes & UrgentLanes) === NoLanes;
+  }
+  */
+  // 是否应该推迟值
+
+  // 应该推迟 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (shouldDeferValue) {
     // This is an urgent update. If the value has changed, keep using the
     // previous value and spawn a deferred render to update it later.
 
-    if (!is(value, prevValue)) {
+    // Object.is算法对比这两个值是否相等
+    if (!is(value, prevValue)) { // 不相等 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+      // ./ReactFiberLane.new.js
+      // 调度一个延迟渲染
       // Schedule a deferred render
-      const deferredLane = claimNextTransitionLane();
+      const deferredLane = claimNextTransitionLane(); // 延迟车道 // 64
+      /* 
+      export function claimNextTransitionLane(): Lane {
+        // Cycle through the lanes, assigning each new transition to the next lane.
+        // In most cases, this means every transition gets its own lane, until we
+        // run out of lanes and cycle back to the beginning.
+        const lane = nextTransitionLane; // nextTransitionLane默认就是TransitionLane1
+        nextTransitionLane <<= 1; // 左移 -> TransitionLane2
+        if ((nextTransitionLane & TransitionLanes) === NoLanes) {
+          nextTransitionLane = TransitionLane1; // 回到TransitionLane1这个值
+        }
+        return lane; // TransitionLane1 // 64
+      }
+      */
+
+
       currentlyRenderingFiber.lanes = mergeLanes(
         currentlyRenderingFiber.lanes,
         deferredLane,
-      );
+      ); // 合并这个延迟车道给wip fiber的lanes // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+      /* 
+      packages/react-reconciler/src/ReactFiberCompleteWork.new.js
+      在completeWork中的bubbleProperties中对于wip来讲只会【向下收集一层孩子】的flags和subTreeFlags到wip的subTreeFlags上
+      另外也只会【向下收集一层孩子】的lanes和childLanes到wip的childLanes上（ // +++防止无限执行ensureRootIsScheduled函数的关键代码3）
+      
+      以下面这个例子为准，那么所以在commitRoot函数执行之前root.current.alternate.childLanes为64
+      const { useState, useEffect, useDeferredValue } = React
+      const { createRoot } = ReactDOM
+      function App() {
+        const [count, setCount] = useState(0)
+        const deferredCount = useDeferredValue(count)
+
+        return (
+          <button onClick={() => {
+              setCount(count => count + 1)
+            }}>
+            <p>count is {count}</p>
+            <p>deferred count is {deferredCount}</p>
+          </button>
+        )
+      }
+
+      createRoot(document.getElementById('root'))
+        .render(<App/>)
+      
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+      packages/react-reconciler/src/ReactFiberWorkLoop.new.js
+      commitRootImpl下的
+        ...
+        // wip // ++++++
+        let remainingLanes = mergeLanes(finishedWork.lanes, finishedWork.childLanes); // return (finishedWork.lanes | finishedWork.childLanes)
+        // 得出剩余的车道集合
+        ...
+        markRootFinished(root, remainingLanes);
+          ...
+          root.pendingLanes = remainingLanes;
+          ...
+        ...
+        // +++防止无限执行ensureRootIsScheduled函数的关键代码1
+        // 替换current树 // 要注意 重点 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // 要注意换了current了 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        root.current = finishedWork; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        ...
+        ensureRootIsScheduled(root, now()); // 再一次执行ensureRootIsScheduled函数
+        ...
+       
+      从上面的逻辑中可以看出它再一次的进行ensureRootIsScheduled的调用执行，具体详细可查看ensureRootIsScheduled函数
+      
+
+      // 所以最终表现就是当点击1次之后会把之前的值commit到页面上去，然后之后又进行了ensureRootIsScheduled函数的调用
+      // 再一次把root.pendingLanes取出作为remainingLanes得出nextLanes，然后再得出newCallbackPriority
+      // 再经过scheduleCallback调度performConcurrentWorkOnRoot函数
+      // 之后进行一系列的操作再次运行到这里那么此时的renderLanes就是64了，所以【不应该延迟】
+      // 那么下面也就返回了新的值啦 ~
+
+      // 所以点击了1次结果是提交了2次，但是修改dom只为1次（提交旧值一次但是由于【diff的原因则不会修改dom】）、最终提交新值一次所以修改dom一次）
+      // 他这样做的效果非常的像debouncing or throttling（节流或防抖）
+      // 类似于输入框不断的输入并不是每次的输入都会伴随着一次的修改dom
+      // 他这里先是提交旧值但由于diff原因不会修改dom，然后之后开始通过【宏任务】调度了一个异步渲染
+      // 但如果此时还在输入那么在ensureRootIsScheduled函数中的逻辑里面由于是同优先级的所以这一次的被return了因为它重用了上一次没有完成的任务
+      // 要注意在操作状态的改变会通过scheduleUpdateOnFiber函数 -> 再去ensureRootIsScheduled函数
+      // 而在scheduleUpdateOnFiber函数中有这样的逻辑
+      //   标记root有一个【待处理的更新】 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      //   Mark that the root has a pending update.
+      //   markRootUpdated(root, lane, eventTime); // root.pendingLanes |= lane // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++（重要的）
+      //   16
+      //   标记root更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 那么所以说即使这个被重用然后当前return也不用怕的，因为已经标记了root.pendingLanes了
+      // 那么在commitRootImpl函数中也是再次执行了ensureRootIsScheduled函数的，所以就是这样来来回回被确保root是【完全被调度】的，【直到没有待处理的车道集合】
+      
+      // ++++++
+
+
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 一定要注意prepareFreshStack和createWorkInProgress函数
+        workInProgress.flags = current.flags & StaticMask; // & StaticMask +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        workInProgress.childLanes = current.childLanes; // +++++++++++++++++++++++++++++++++++++++++++
+        workInProgress.lanes = current.lanes; // +++++++++++++++++++++++++++++++++++++++++++++++++++++
+      
+      但是在beginWork时再调用updateFunctionComponent之前有这样一句代码workInProgress.lanes = NoLanes; // +++防止无限执行ensureRootIsScheduled函数的关键代码2
+      // 这是重点，所以在再次执行到这里的时候就是【不应该延迟值】了那么也不会对它的lanes做改变，所以在completeWork中的bubbleProperties函数中对于workInProgress的childLanes（ // +++防止无限执行ensureRootIsScheduled函数的关键代码3）
+      就不会再有，那么在上面的得出剩余的车道集合时就不会有，那么再对于下面的ensureRootIsScheduled就会直接return啦 ~
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+      ensureRootIsScheduled函数剩余的逻辑：
+
+        ...
+      
+        // 确定下一个要处理的通道及其优先级。
+        // Determine the next lanes to work on, and their priority.
+        // packages/react-reconciler/src/ReactFiberLane.new.js
+        const nextLanes = getNextLanes( // 获取下一个车道集合 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          root,
+          root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes, // false -> 0 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
+        ); // 16
+        // 64 // +++
+
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // setTimeout下16
+        // react的click下1
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+        // 下一车道是NoLanes
+        if (nextLanes === NoLanes) { // ++++++++++++++++++++++++++++++++++++++++++++++
+          // 特殊情况：没有什么可做的。
+          // Special case: There's nothing to work on.
+          if (existingCallbackNode !== null) {
+            cancelCallback(existingCallbackNode); // 取消cb
+          }
+          // 重置状态并return // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          root.callbackNode = null;
+          root.callbackPriority = NoLane;
+          /// +++++++++++++++++++++++++++++++++++++++++++++++++
+          return; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          // ++++++++++++++++++++++++++++++++++++++++++++++++++++
+        }
+
+        ...
+
+        let schedulerPriorityLevel;
+        // 车道转为事件优先级
+        // packages/react-reconciler/src/ReactEventPriorities.new.js
+        // lanesToEventPriority函数
+        switch (lanesToEventPriority(nextLanes)) { // 64 -> DefaultEventPriority: 16
+          case DiscreteEventPriority:
+            schedulerPriorityLevel = ImmediateSchedulerPriority; // 1
+            break;
+          case ContinuousEventPriority:
+            schedulerPriorityLevel = UserBlockingSchedulerPriority; // 2
+            break;
+          case DefaultEventPriority: // DefaultEventPriority 16 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // 与之对应的调度优先级为正常调度优先级 // +++++++++++++++++++++++++++++++++++++++++++++++++
+            schedulerPriorityLevel = NormalSchedulerPriority; // 3
+            break;
+          case IdleEventPriority:
+            schedulerPriorityLevel = IdleSchedulerPriority; // 5
+            break;
+          default:
+            schedulerPriorityLevel = NormalSchedulerPriority; // 3
+            break;
+        }
+        // +++调度回调+++
+        // 返回一个新回调节点
+        // 其实就是一个任务对象（task对象）
+        newCallbackNode = scheduleCallback( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          schedulerPriorityLevel, // 3
+          // 在root上执行并发工作 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          performConcurrentWorkOnRoot.bind(null, root), // 绑定FiberRootNode
+          // 调度performConcurrentWorkOnRoot这个函数
+        ); // 再一次使用scheduleCallback进行调度performConcurrentWorkOnRoot这个函数 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      */
+      
+
+
+      
+      
+      
+
+
+      // ./ReactFiberWorkLoop.new.js
+      // 标记跳过的更新车道集合 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
       markSkippedUpdateLanes(deferredLane);
+      /* 
+      export function markSkippedUpdateLanes(lane: Lane | Lanes): void {
+        workInProgressRootSkippedLanes = mergeLanes(
+          lane,
+          workInProgressRootSkippedLanes,
+        );
+      }
+      */
 
       // Set this to true to indicate that the rendered value is inconsistent
       // from the latest value. The name "baseState" doesn't really match how we
       // use it because we're reusing a state hook field instead of creating a
       // new one.
-      hook.baseState = true;
+      hook.baseState = true; // 标记 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
 
+    // 重新使用之前的值 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Reuse the previous value
     return prevValue;
   } else {
+
+    // 不应该推迟 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
     // This is not an urgent update, so we can use the latest value regardless
     // of what it is. No need to defer it.
 
@@ -2549,10 +2776,18 @@ function updateDeferredValueImpl<T>(hook: Hook, prevValue: T, value: T): T {
     // a state hook field instead of creating a new one.
     if (hook.baseState) {
       // Flip this back to false.
-      hook.baseState = false;
-      markWorkInProgressReceivedUpdate();
+      hook.baseState = false; // 标记为false
+      markWorkInProgressReceivedUpdate(); // 标记
+      /* 
+      ./ReactFiberBeginWork.new.js
+
+      export function markWorkInProgressReceivedUpdate() {
+        didReceiveUpdate = true;
+      }
+      */
     }
 
+    // 那么直接把新的value放在hook对象的memoizedState属性上即可
     hook.memoizedState = value;
     return value;
   }
@@ -3266,10 +3501,11 @@ if (__DEV__) {
       mountHookTypesDev();
       return mountDebugValue(value, formatterFn);
     },
+    // OnMount期间的useDeferredValue
     useDeferredValue<T>(value: T): T {
       currentHookNameInDev = 'useDeferredValue';
       mountHookTypesDev();
-      return mountDeferredValue(value);
+      return mountDeferredValue(value); // 挂载推迟的值 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
     useTransition(): [boolean, (() => void) => void] {
       currentHookNameInDev = 'useTransition';
@@ -3612,10 +3848,11 @@ if (__DEV__) {
       updateHookTypesDev();
       return updateDebugValue(value, formatterFn);
     },
+    // OnUpdate期间的useDeferredValue
     useDeferredValue<T>(value: T): T {
       currentHookNameInDev = 'useDeferredValue';
       updateHookTypesDev();
-      return updateDeferredValue(value);
+      return updateDeferredValue(value); /// 更新推迟的值 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
     useTransition(): [boolean, (() => void) => void] {
       currentHookNameInDev = 'useTransition';

@@ -331,6 +331,7 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
   workInProgress.flags = current.flags & StaticMask; // & StaticMask +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   workInProgress.childLanes = current.childLanes; // +++++++++++++++++++++++++++++++++++++++++++
   workInProgress.lanes = current.lanes; // +++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   workInProgress.child = current.child; // +++++++++++++++++++++++++++++++++++++++++++++++++++++
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

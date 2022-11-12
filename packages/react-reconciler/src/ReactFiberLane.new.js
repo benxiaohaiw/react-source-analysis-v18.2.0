@@ -51,7 +51,7 @@ export const DefaultLane: Lane = /*                     */ 0b0000000000000000000
 
 const TransitionHydrationLane: Lane = /*                */ 0b0000000000000000000000000100000;
 const TransitionLanes: Lanes = /*                       */ 0b0000000001111111111111111000000;
-const TransitionLane1: Lane = /*                        */ 0b0000000000000000000000001000000;
+const TransitionLane1: Lane = /*                        */ 0b0000000000000000000000001000000; // 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 const TransitionLane2: Lane = /*                        */ 0b0000000000000000000000010000000;
 const TransitionLane3: Lane = /*                        */ 0b0000000000000000000000100000000;
 const TransitionLane4: Lane = /*                        */ 0b0000000000000000000001000000000;
@@ -490,10 +490,15 @@ export function includesNonIdleWork(lanes: Lanes): boolean {
 export function includesOnlyRetries(lanes: Lanes): boolean {
   return (lanes & RetryLanes) === lanes;
 }
+
+
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function includesOnlyNonUrgentLanes(lanes: Lanes): boolean {
   const UrgentLanes = SyncLane | InputContinuousLane | DefaultLane;
   return (lanes & UrgentLanes) === NoLanes;
 }
+
+
 export function includesOnlyTransitions(lanes: Lanes): boolean {
   return (lanes & TransitionLanes) === lanes;
 }
@@ -529,16 +534,17 @@ export function isTransitionLane(lane: Lane): boolean {
   return (lane & TransitionLanes) !== NoLanes;
 }
 
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=++++++++++++
 export function claimNextTransitionLane(): Lane {
   // Cycle through the lanes, assigning each new transition to the next lane.
   // In most cases, this means every transition gets its own lane, until we
   // run out of lanes and cycle back to the beginning.
-  const lane = nextTransitionLane;
-  nextTransitionLane <<= 1;
+  const lane = nextTransitionLane; // nextTransitionLane默认就是TransitionLane1
+  nextTransitionLane <<= 1; // 左移
   if ((nextTransitionLane & TransitionLanes) === NoLanes) {
-    nextTransitionLane = TransitionLane1;
+    nextTransitionLane = TransitionLane1; // 回到TransitionLane1这个值
   }
-  return lane;
+  return lane; // TransitionLane1
 }
 
 export function claimNextRetryLane(): Lane {
@@ -680,7 +686,8 @@ export function markRootMutableRead(root: FiberRoot, updateLane: Lane) {
 export function markRootFinished(root: FiberRoot, remainingLanes: Lanes) {
   const noLongerPendingLanes = root.pendingLanes & ~remainingLanes;
 
-  root.pendingLanes = remainingLanes;
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  root.pendingLanes = remainingLanes; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // Let's try everything again
   root.suspendedLanes = NoLanes;
