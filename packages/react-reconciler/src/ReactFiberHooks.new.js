@@ -2564,8 +2564,8 @@ function updateDeferredValueImpl<T>(hook: Hook, prevValue: T, value: T): T {
         // In most cases, this means every transition gets its own lane, until we
         // run out of lanes and cycle back to the beginning.
         const lane = nextTransitionLane; // nextTransitionLane默认就是TransitionLane1
-        nextTransitionLane <<= 1; // 左移 -> TransitionLane2
-        if ((nextTransitionLane & TransitionLanes) === NoLanes) {
+        nextTransitionLane <<= 1; // 左移 -> TransitionLane2 -> 再左移变为TransitionLane3
+        if ((nextTransitionLane & TransitionLanes) === NoLanes) { // 到达边界不是过渡车道啦那么直接恢复为TransitionLane1 // ++++++
           nextTransitionLane = TransitionLane1; // 回到TransitionLane1这个值
         }
         return lane; // TransitionLane1 // 64
@@ -2637,8 +2637,11 @@ function updateDeferredValueImpl<T>(hook: Hook, prevValue: T, value: T): T {
       // 所以点击了1次结果是提交了2次，但是修改dom只为1次（提交旧值一次但是由于【diff的原因则不会修改dom】）、最终提交新值一次所以修改dom一次）
       // 他这样做的效果非常的像debouncing or throttling（节流或防抖）
       // 类似于输入框不断的输入并不是每次的输入都会伴随着一次的修改dom
-      // 他这里先是提交旧值但由于diff原因不会修改dom，然后之后开始通过【宏任务】调度了一个异步渲染
-      // 但如果此时还在输入那么在ensureRootIsScheduled函数中的逻辑里面由于是同优先级的所以这一次的被return了因为它重用了上一次没有完成的任务
+      // 他这里先是提交旧值但由于diff原因不会修改dom，然后之后开始通过【宏任务】调度了一个异步渲染performConcurrentWorkOnRoot（这里的修改lanes逻辑导致的）（这个是为了提交新值+++）
+      // 但如果此时还在输入（onChange、onClick、onInput都是同步车道 1）那么在ensureRootIsScheduled函数中的逻辑里面由于不是同优先级的（因为修改状态要通过dispatchSetState -> requestUpdateLane）
+      // 那么它请求到的车道就是1 同步车道，而本次的车道和上一次的车道不一样
+      // 所以直接取消上一次的任务，重新调度一个新的任务那么此时产生的是一个【微任务】且是performSyncWorkOnRoot
+      
       // 要注意在操作状态的改变会通过scheduleUpdateOnFiber函数 -> 再去ensureRootIsScheduled函数
       // 而在scheduleUpdateOnFiber函数中有这样的逻辑
       //   标记root有一个【待处理的更新】 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

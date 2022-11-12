@@ -433,7 +433,7 @@ export function getEventPriority(domEventName: DOMEventName): EventPriority {
     case 'drop':
     case 'focusin':
     case 'focusout':
-    case 'input':
+    case 'input': // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case 'invalid':
     case 'keydown':
     case 'keypress':
@@ -457,7 +457,7 @@ export function getEventPriority(domEventName: DOMEventName): EventPriority {
     case 'volumechange':
     // Used by polyfills:
     // eslint-disable-next-line no-fallthrough
-    case 'change':
+    case 'change': // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case 'selectionchange':
     case 'textInput':
     case 'compositionstart':
@@ -470,14 +470,14 @@ export function getEventPriority(domEventName: DOMEventName): EventPriority {
     // Not used by React but could be by user code:
     // eslint-disable-next-line no-fallthrough
     case 'beforeinput':
-    case 'blur':
+    case 'blur': // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case 'fullscreenchange':
-    case 'focus':
+    case 'focus': // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case 'hashchange':
     case 'popstate':
     case 'select':
     case 'selectstart':
-      return DiscreteEventPriority; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      return DiscreteEventPriority; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case 'drag':
     case 'dragenter':
     case 'dragexit':
