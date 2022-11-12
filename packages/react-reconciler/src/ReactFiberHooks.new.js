@@ -905,43 +905,93 @@ function useMemoCache(size: number): Array<any> {
   return data;
 }
 
+// 基础状态reducer
 function basicStateReducer<S>(state: S, action: BasicStateAction<S>): S {
   // $FlowFixMe: Flow doesn't like mixed types
   return typeof action === 'function' ? action(state) : action;
 }
 
+// 挂载reducer
 function mountReducer<S, I, A>(
   reducer: (S, A) => S,
   initialArg: I,
   init?: I => S,
 ): [S, Dispatch<A>] {
+
   const hook = mountWorkInProgressHook();
+  // 形成hook链表
+  
+  // 准备初始化状态
   let initialState;
+  
+
   if (init !== undefined) {
-    initialState = init(initialArg);
+    // 执行init函数 - 把initialArg作为其参数传递
+    initialState = init(initialArg); // 得到初始化状态
   } else {
-    initialState = ((initialArg: any): S);
+    initialState = ((initialArg: any): S); // 直接把初始化参数作为初始化状态
   }
+  
+  // 然后把初始化状态存储到hook对象的【baseState】、【memoizedState】属性上
   hook.memoizedState = hook.baseState = initialState;
+  
+  // 还是和useState一样准备queue对象
   const queue: UpdateQueue<S, A> = {
     pending: null,
     lanes: NoLanes,
     dispatch: null,
-    lastRenderedReducer: reducer,
+    lastRenderedReducer: reducer, // 用户的reducer函数 // +++
     lastRenderedState: (initialState: any),
   };
+  
+  // 放在hook的queue上
   hook.queue = queue;
-  const dispatch: Dispatch<A> = (queue.dispatch = (dispatchReducerAction.bind(
+  
+  // 产生dispatch函数
+  const dispatch: Dispatch<A> = (queue.dispatch = (dispatchReducerAction.bind( // 注意是dispatchReducerAction函数 // +++
     null,
     currentlyRenderingFiber,
     queue,
   ): any));
+
+  // 返回数组
   return [hook.memoizedState, dispatch];
 }
 
+/* 
+https://reactjs.org/docs/hooks-reference.html#usereducer
+
+const initialState = {count: 0}
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'increment':
+      return {count: state.count + 1}
+    case 'decrement':
+      return {count: state.count - 1}
+    default:
+      throw new Error()
+  }
+}
+
+function Counter() {
+  const [state, dispatch] = useReducer(reducer, initialState)
+  return (
+    <>
+      Count: {state.count}
+      <button onClick={() => dispatch({type: 'decrement'})}>-</button>
+      <button onClick={() => dispatch({type: 'increment'})}>+</button>
+    </>
+  )
+}
+*/
+
+// useState和useReducer在update期间使用的是相同的函数updateReducer // ++++++
 // 更新reducer // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function updateReducer<S, I, A>(
   reducer: (S, A) => S,
+  // +++
+  // 下面这两个参数直接丢弃了 // 要注意 +++
   initialArg: I,
   init?: I => S,
 ): [S, Dispatch<A>] {
@@ -956,6 +1006,7 @@ function updateReducer<S, I, A>(
     );
   }
 
+  // 更新queue中的lastRenderedReducer为新的reducer函数 - 用户reducer
   queue.lastRenderedReducer = reducer; // 依然还是basicStateReducer函数
 
   const current: Hook = (currentHook: any); // current hook链表中的第一个hook对象
@@ -1002,6 +1053,8 @@ function updateReducer<S, I, A>(
     // 我们有一个队列要去处理 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // We have a queue to process.
     const first = baseQueue.next; // 通过环形链表最后一个的next拿到环形链表的第一个update对象
+
+    // current hook的baseState - 其实就是mountReducer中的initialState // +++
     let newState = current.baseState; // 获取current hook对象上的基础状态，作为新状态，它是要作为下面的基础的 // ++++++++++++++++++++++++++++++++++++++++++++++
 
     let newBaseState = null;
@@ -1073,8 +1126,12 @@ function updateReducer<S, I, A>(
           // we can use the eagerly computed state
           newState = ((update.eagerState: any): S);
         } else {
+          // 【useReducer它是一直走的这里】 - 因为他在dispatchReducerAction函数中并没有计算而是直接入队列了然后进行调度的，所以对于他来讲它的hasEagerState为false
           const action = update.action;
+          // 用户reducer函数
           newState = reducer(newState, action); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          // 对于useState来讲是basicStateReducer // +++
+          // 而对于useReducer来讲是用户写的reducer // +++
         }
         // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
@@ -1085,6 +1142,7 @@ function updateReducer<S, I, A>(
 
     if (newBaseQueueLast === null) { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       newBaseState = newState; // 新的基础状态
+      // 更新替换 // +++
     } else {
       newBaseQueueLast.next = (newBaseQueueFirst: any);
     }
@@ -1104,8 +1162,8 @@ function updateReducer<S, I, A>(
     }
 
     // 更新workInProgress上的hook对象身上的属性
-    hook.memoizedState = newState; // 1
-    hook.baseState = newBaseState; // 1
+    hook.memoizedState = newState; // 1 // 更新替换 // +++
+    hook.baseState = newBaseState; // 1 // 更新替换 // +++
 
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     hook.baseQueue = newBaseQueueLast; // null // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
@@ -3171,10 +3229,11 @@ function refreshCache<T>(fiber: Fiber, seedKey: ?() => T, seedValue: T) {
   // TODO: Warn if unmounted?
 }
 
+// 派发reducer行为 // +++
 function dispatchReducerAction<S, A>(
   fiber: Fiber,
   queue: UpdateQueue<S, A>,
-  action: A,
+  action: A, // {type: 'xxx'}
 ) {
   if (__DEV__) {
     if (typeof arguments[3] === 'function') {
@@ -3186,24 +3245,37 @@ function dispatchReducerAction<S, A>(
     }
   }
 
+  // 还是请求更新车道
   const lane = requestUpdateLane(fiber);
 
+  // 依然是准给update对象
   const update: Update<S, A> = {
     lane,
-    action,
+    action, // action对象 // +++
     hasEagerState: false,
     eagerState: null,
     next: (null: any),
   };
 
+  // 是否为渲染阶段的更新
   if (isRenderPhaseUpdate(fiber)) {
-    enqueueRenderPhaseUpdate(queue, update);
+    enqueueRenderPhaseUpdate(queue, update); // 入队列渲染阶段的更新 // +++
   } else {
+
+    /* 
+    这里的逻辑和useState的dispatchSetState函数不同 - dispatchSetState函数多了额外的逻辑 // +++
+    */
+
+    // 入队列并发钩子更新
+    // 在./ReactFiberConcurrentUpdates.new.js下 - 简单点其实就是把这四个参数存在数组中
     const root = enqueueConcurrentHookUpdate(fiber, queue, update, lane);
+    // 返回FiberRootNode
+
     if (root !== null) {
       const eventTime = requestEventTime();
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
-      entangleTransitionUpdate(root, queue, lane);
+      // ./ReactFiberWorkLoop.new.js中scheduleUpdateOnFiber函数
+      scheduleUpdateOnFiber(root, fiber, lane, eventTime); // 依旧是在fiber上调度更新 // +++
+      entangleTransitionUpdate(root, queue, lane); // 纠缠过渡更新 // +++
     }
   }
 
@@ -3664,6 +3736,7 @@ if (__DEV__) {
         ReactCurrentDispatcher.current = prevDispatcher;
       }
     },
+    // OnMount期间的useReducer
     useReducer<S, I, A>(
       reducer: (S, A) => S,
       initialArg: I,
@@ -3674,7 +3747,7 @@ if (__DEV__) {
       const prevDispatcher = ReactCurrentDispatcher.current;
       ReactCurrentDispatcher.current = InvalidNestedHooksDispatcherOnMountInDEV;
       try {
-        return mountReducer(reducer, initialArg, init);
+        return mountReducer(reducer, initialArg, init); // 挂载reducer
       } finally {
         ReactCurrentDispatcher.current = prevDispatcher;
       }
