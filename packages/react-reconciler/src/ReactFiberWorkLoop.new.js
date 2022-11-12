@@ -600,7 +600,7 @@ export function getCurrentTime(): number {
 }
 
 // 请求更新车道 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-export function requestUpdateLane(fiber: Fiber): Lane {
+export function requestUpdateLane(fiber: Fiber): Lane { // 请求更新车道 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // updateContainer中的FiberRootNode的FiberNode举例 // 它的mode为1也就是ConcurrentMode
   // executionContext为0那么与的结果就是NoContext 0
   // requestCurrentTransition也是NoTransition 0
@@ -630,8 +630,10 @@ export function requestUpdateLane(fiber: Fiber): Lane {
     return pickArbitraryLane(workInProgressRootRenderLanes);
   }
 
-  const isTransition = requestCurrentTransition() !== NoTransition;
-  if (isTransition) {
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // {} !== null -> true
+  const isTransition = requestCurrentTransition() !== NoTransition; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  if (isTransition) { // true
     if (__DEV__ && ReactCurrentBatchConfig.transition !== null) {
       const transition = ReactCurrentBatchConfig.transition;
       if (!transition._updatedFibers) {
@@ -647,11 +649,29 @@ export function requestUpdateLane(fiber: Fiber): Lane {
     // The trick we use is to cache the first of each of these inputs within an
     // event. Then reset the cached values once we can be sure the event is
     // over. Our heuristic for that is whenever we enter a concurrent work loop.
-    if (currentEventTransitionLane === NoLane) {
+    /// +++
+    // let currentEventTransitionLane: Lanes = NoLanes; // 默认是0
+    if (currentEventTransitionLane === NoLane) { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // All transitions within the same event are assigned the same lane.
-      currentEventTransitionLane = claimNextTransitionLane();
+      currentEventTransitionLane = claimNextTransitionLane(); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      /* 
+      // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=++++++++++++
+      export function claimNextTransitionLane(): Lane { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // Cycle through the lanes, assigning each new transition to the next lane.
+        // In most cases, this means every transition gets its own lane, until we
+        // run out of lanes and cycle back to the beginning.
+        const lane = nextTransitionLane; // nextTransitionLane默认就是TransitionLane1
+        nextTransitionLane <<= 1; // 左移 就变为了过渡车道2了 之后就3
+        if ((nextTransitionLane & TransitionLanes) === NoLanes) { // 然后到达边界不是过渡车道了那么直接变为过渡车道1 // +++++++++++++++++++++++++++++++++++
+          nextTransitionLane = TransitionLane1; // 回到TransitionLane1这个值
+        }
+        return lane; // TransitionLane1 // 64
+      }
+      */
     }
-    return currentEventTransitionLane;
+
+    // 返回64 // +++
+    return currentEventTransitionLane; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   }
 
   // Updates originating inside certain React methods, like flushSync, have

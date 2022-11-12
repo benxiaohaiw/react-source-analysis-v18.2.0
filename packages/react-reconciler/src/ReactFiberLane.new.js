@@ -50,7 +50,7 @@ export const DefaultHydrationLane: Lane = /*            */ 0b0000000000000000000
 export const DefaultLane: Lane = /*                     */ 0b0000000000000000000000000010000; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 const TransitionHydrationLane: Lane = /*                */ 0b0000000000000000000000000100000;
-const TransitionLanes: Lanes = /*                       */ 0b0000000001111111111111111000000;
+const TransitionLanes: Lanes = /*                       */ 0b0000000001111111111111111000000; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
 const TransitionLane1: Lane = /*                        */ 0b0000000000000000000000001000000; // 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 const TransitionLane2: Lane = /*                        */ 0b0000000000000000000000010000000;
 const TransitionLane3: Lane = /*                        */ 0b0000000000000000000000100000000;
@@ -530,12 +530,14 @@ export function includesExpiredLane(root: FiberRoot, lanes: Lanes): boolean {
   return (lanes & root.expiredLanes) !== NoLanes; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
+// 是否为过渡车道集合 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function isTransitionLane(lane: Lane): boolean {
+  // const TransitionLanes: Lanes = /*                       */ 0b0000000001111111111111111000000; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
   return (lane & TransitionLanes) !== NoLanes;
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=++++++++++++
-export function claimNextTransitionLane(): Lane {
+export function claimNextTransitionLane(): Lane { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Cycle through the lanes, assigning each new transition to the next lane.
   // In most cases, this means every transition gets its own lane, until we
   // run out of lanes and cycle back to the beginning.
@@ -544,7 +546,7 @@ export function claimNextTransitionLane(): Lane {
   if ((nextTransitionLane & TransitionLanes) === NoLanes) {
     nextTransitionLane = TransitionLane1; // 回到TransitionLane1这个值
   }
-  return lane; // TransitionLane1
+  return lane; // TransitionLane1 64
 }
 
 export function claimNextRetryLane(): Lane {
@@ -596,8 +598,9 @@ export function removeLanes(set: Lanes, subset: Lanes | Lane): Lanes {
   return set & ~subset;
 }
 
+// 交叉车道集合 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function intersectLanes(a: Lanes | Lane, b: Lanes | Lane): Lanes {
-  return a & b;
+  return a & b; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
 // Seems redundant, but it changes the type from a single lane (used for
@@ -734,6 +737,7 @@ export function markRootFinished(root: FiberRoot, remainingLanes: Lanes) {
   }
 }
 
+// 标记root已纠缠 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function markRootEntangled(root: FiberRoot, entangledLanes: Lanes) {
   // In addition to entangling each of the given lanes with each other, we also
   // have to consider _transitive_ entanglements. For each lane that is already
@@ -747,7 +751,7 @@ export function markRootEntangled(root: FiberRoot, entangledLanes: Lanes) {
   // function and look at the tests that fail in ReactTransition-test.js. Try
   // commenting out one of the conditions below.
 
-  const rootEntangledLanes = (root.entangledLanes |= entangledLanes);
+  const rootEntangledLanes = (root.entangledLanes |= entangledLanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++
   const entanglements = root.entanglements;
   let lanes = rootEntangledLanes;
   while (lanes) {

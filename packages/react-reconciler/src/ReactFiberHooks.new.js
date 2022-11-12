@@ -2793,17 +2793,76 @@ function updateDeferredValueImpl<T>(hook: Hook, prevValue: T, value: T): T {
   }
 }
 
+/* 
+https://reactjs.org/docs/hooks-reference.html#usetransition
+
+function App() {
+  const [isPending, startTransition] = useTransition()
+  const [count, setCount] = useState(0)
+  
+  function handleClick() {
+    startTransition(() => {
+      setCount(c => c + 1)
+    })
+  }
+
+  return (
+    <div>
+      {isPending && <Spinner />}
+      <button onClick={handleClick}>{count}</button>
+    </div>
+  )
+}
+*/
+// 开始过渡 // +++
 function startTransition(setPending, callback, options) {
-  const previousPriority = getCurrentUpdatePriority();
+  const previousPriority = getCurrentUpdatePriority(); // 获取currentUpdatePriority
+
+  /* 
+  ./ReactEventPriorities.new.js
+  // 离散事件优先级
+export const DiscreteEventPriority: EventPriority = SyncLane; // 同步车道 // 1 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // 连续事件优先级
+export const ContinuousEventPriority: EventPriority = InputContinuousLane; // 4 // +++
+
+// 当前更新优先级
+let currentUpdatePriority: EventPriority = NoLane; // 默认为NoLane
+  */
+
+  // 设置currentUpdatePriority
   setCurrentUpdatePriority(
-    higherEventPriority(previousPriority, ContinuousEventPriority),
+    higherEventPriority(previousPriority, ContinuousEventPriority), // 返回两者之间较小的那一个
   );
+  /* 
+  ./ReactEventPriorities.new.js
+  export function higherEventPriority(
+    a: EventPriority,
+    b: EventPriority,
+  ): EventPriority {
+    return a !== 0 && a < b ? a : b;
+  }
+  */
 
-  setPending(true);
+  // 在scheduleUpdateOnFiber中触发一个微任务且是执行performSyncWorkOnRoot
+  /* 
+  dispatchSetState -> scheduleUpdateOnFiber -> entangleTransitionUpdate（具体查看此方法）
+  */
+  setPending(true); // 设置状态为true
 
-  const prevTransition = ReactCurrentBatchConfig.transition;
-  ReactCurrentBatchConfig.transition = {};
-  const currentTransition = ReactCurrentBatchConfig.transition;
+  const prevTransition = ReactCurrentBatchConfig.transition; // +++
+  
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  ReactCurrentBatchConfig.transition = {}; // 这里设置了一个空对象{} +++++++++++++++++++++++++++++++++++++++++++++++++++
+  /* 
+  这个赋值将会直接影响下面的函数
+  requestUpdateLane -> 64 过渡1车道 -> 过渡2车道 -> 过渡3车道
+
+  scheduleUpdateOnFiber
+  entangleTransitionUpdate
+  */
+
+  const currentTransition = ReactCurrentBatchConfig.transition; // +++
 
   if (enableTransitionTracing) {
     if (options !== undefined && options.name !== undefined) {
@@ -2817,12 +2876,34 @@ function startTransition(setPending, callback, options) {
   }
 
   try {
-    setPending(false);
-    callback();
+    
+    // 在scheduleUpdateOnFiber中取消上一次的任务，并安排一个新的宏任务处理performConcurrentWorkOnRoot
+    // 这里requestUpdateLane就为【过渡1车道了】
+    /* 
+    dispatchSetState -> scheduleUpdateOnFiber -> entangleTransitionUpdate（具体查看此方法）
+    */
+    setPending(false); // 紧接着再设置为false
+
+    // 执行cb - 因为cb中会去修改状态 - dispatchSetState -> scheduleUpdateOnFiber -> entangleTransitionUpdate（具体查看此方法）
+    // 在这个scheduleUpdateOnFiber中requestUpdateLane就为【过渡2车道了】那么所以也是取消上一次的任务，并安排一个新的宏任务处理performConcurrentWorkOnRoot
+
+    // 那么在performConcurrentWorkOnRoot中是否shouldTimeSlice呢？
+      // const shouldTimeSlice = // 是否应该时间切片
+      // !includesBlockingLane(root, lanes) && // 是否包含阻塞车道 // !true // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // !includesExpiredLane(root, lanes) && // 是否包含过期车道
+      // (disableSchedulerTimeoutInWorkLoop || !didTimeout); // 是否禁用调度器超时工作环 或者 没有超时
+    // 答案是肯定的时间切片
+    // 那么直接执行renderRootConcurrent而不是renderRootSync
+    // 【时间切片】啦 ~
+    callback(); // 直接执行cb函数
   } finally {
+
+    // 恢复之前的currentUpdatePriority
     setCurrentUpdatePriority(previousPriority);
 
-    ReactCurrentBatchConfig.transition = prevTransition;
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // 再赋值为之前的过渡值，应该是为null了！！！
+    ReactCurrentBatchConfig.transition = prevTransition; // 重要 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     if (__DEV__) {
       if (prevTransition === null && currentTransition._updatedFibers) {
@@ -2840,26 +2921,43 @@ function startTransition(setPending, callback, options) {
   }
 }
 
+// 挂载
 function mountTransition(): [
   boolean,
   (callback: () => void, options?: StartTransitionOptions) => void,
 ] {
-  const [isPending, setPending] = mountState(false);
+
+  // useState的挂载时期的逻辑
+  const [isPending, setPending] = mountState(false); // 挂载状态isPending - 默认值为false
+
+  // 这个start方法是从不改变的 // ++++++
   // The `start` method never changes.
-  const start = startTransition.bind(null, setPending);
+  const start = startTransition.bind(null, setPending); // 给startTransition绑定一个更改isPending的函数
+
   const hook = mountWorkInProgressHook();
+  // 再次形成一个关于当前的hook对象放置在hook链表上
+
+  // hook对象属性的memoizedState存储start函数
   hook.memoizedState = start;
-  return [isPending, start];
+
+  return [isPending, start]; // 返回这个集合
 }
 
+// 更新
 function updateTransition(): [
   boolean,
   (callback: () => void, options?: StartTransitionOptions) => void,
 ] {
-  const [isPending] = updateState(false);
+  const [isPending] = updateState(false); // 更新状态
+
   const hook = updateWorkInProgressHook();
-  const start = hook.memoizedState;
-  return [isPending, start];
+  // 还是浅克隆
+  // 当前重要的是hook.memoizedState其实就是current hook的memoizedState属性
+
+  const start = hook.memoizedState; // 还是start函数
+
+
+  return [isPending, start]; // 返回
 }
 
 function rerenderTransition(): [
@@ -3058,7 +3156,7 @@ function dispatchSetState<S, A>(
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // 请求更新车道
+  // 请求更新车道 | 64
   const lane = requestUpdateLane(fiber); // 请求更新车道 // 1
   // 通过react中click事件的话这里请求到的更新车道为1 同步车道
   // 而脱离react如setTimeout中执行dispatchSetState函数的话这里获取到的更新车道就是16 默认车道
@@ -3136,7 +3234,7 @@ function dispatchSetState<S, A>(
       // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       scheduleUpdateOnFiber(root, fiber, lane, eventTime); // 在fiber上调度更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
       // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-      entangleTransitionUpdate(root, queue, lane);
+      entangleTransitionUpdate(root, queue, lane); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
   }
 
@@ -3180,13 +3278,22 @@ function enqueueRenderPhaseUpdate<S, A>(
   queue.pending = update;
 }
 
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // TODO: Move to ReactFiberConcurrentUpdates?
 function entangleTransitionUpdate<S, A>(
   root: FiberRoot,
   queue: UpdateQueue<S, A>,
   lane: Lane,
 ) {
+
+  // 是否为过渡车道 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (isTransitionLane(lane)) {
+    // // 是否为过渡车道集合
+    // export function isTransitionLane(lane: Lane): boolean {
+    //   // const TransitionLanes: Lanes = /*                       */ 0b0000000001111111111111111000000; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+    //   return (lane & TransitionLanes) !== NoLanes;
+    // }
+
     let queueLanes = queue.lanes;
 
     // If any entangled lanes are no longer pending on the root, then they
@@ -3194,15 +3301,27 @@ function entangleTransitionUpdate<S, A>(
     // represents a superset of the actually pending lanes. In some cases we
     // may entangle more than we need to, but that's OK. In fact it's worse if
     // we *don't* entangle when we should.
-    queueLanes = intersectLanes(queueLanes, root.pendingLanes);
+    queueLanes = intersectLanes(queueLanes, root.pendingLanes); // 交叉车道集合
+    /* 
+    // 交叉车道集合 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    export function intersectLanes(a: Lanes | Lane, b: Lanes | Lane): Lanes {
+      return a & b; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    }
+    */
 
+    // 将新的过渡车道与其他过渡车道纠缠在一起。
     // Entangle the new transition lane with the other transition lanes.
-    const newQueueLanes = mergeLanes(queueLanes, lane);
-    queue.lanes = newQueueLanes;
+    const newQueueLanes = mergeLanes(queueLanes, lane); // return queueLanes | lane // +++++++++++++++++++++++++++++++++++++++++++
+    queue.lanes = newQueueLanes; // 重新设置 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Even if queue.lanes already include lane, we don't know for certain if
     // the lane finished since the last time we entangled it. So we need to
     // entangle it again, just to be sure.
     markRootEntangled(root, newQueueLanes);
+    /* 
+    ...
+    root.entangledLanes |= entangledLanes // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    ...
+    */
   }
 }
 
@@ -3507,10 +3626,12 @@ if (__DEV__) {
       mountHookTypesDev();
       return mountDeferredValue(value); // 挂载推迟的值 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
+    // OnMount期间的useTransition
+    // 那么实际上这个hook就是用来进行开启【时间切片】的也就是使用renderRootConcurrent来进行去渲染的 // +++++++++++++++++++++++++++++++++++
     useTransition(): [boolean, (() => void) => void] {
       currentHookNameInDev = 'useTransition';
       mountHookTypesDev();
-      return mountTransition();
+      return mountTransition(); // 挂载
     },
     useMutableSource<Source, Snapshot>(
       source: MutableSource<Source>,
@@ -3854,10 +3975,11 @@ if (__DEV__) {
       updateHookTypesDev();
       return updateDeferredValue(value); /// 更新推迟的值 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
+    // OnUpdate期间的useTransition
     useTransition(): [boolean, (() => void) => void] {
       currentHookNameInDev = 'useTransition';
       updateHookTypesDev();
-      return updateTransition();
+      return updateTransition(); // 更新
     },
     useMutableSource<Source, Snapshot>(
       source: MutableSource<Source>,

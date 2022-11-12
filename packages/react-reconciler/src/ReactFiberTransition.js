@@ -12,8 +12,10 @@ import type {Transition} from './ReactFiberTracingMarkerComponent.new';
 
 const {ReactCurrentBatchConfig} = ReactSharedInternals;
 
-export const NoTransition = null;
+// null
+export const NoTransition = null; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-export function requestCurrentTransition(): Transition | null {
-  return ReactCurrentBatchConfig.transition;
+export function requestCurrentTransition(): Transition | null { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // {}
+  return ReactCurrentBatchConfig.transition; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
