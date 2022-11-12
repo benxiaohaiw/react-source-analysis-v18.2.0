@@ -1478,13 +1478,18 @@ function updateMutableSource<Source, Snapshot>(
   return useMutableSource(hook, source, getSnapshot, subscribe);
 }
 
+// 挂载同步外部存储
 function mountSyncExternalStore<T>(
   subscribe: (() => void) => () => void,
   getSnapshot: () => T,
   getServerSnapshot?: () => T,
 ): T {
-  const fiber = currentlyRenderingFiber;
+  const fiber = currentlyRenderingFiber; // 拿到当前的workInProgress fiber
+  // 它是在renderWithHooks函数中执行Component函数之前赋值的
+  // 所以它就是函数式组件对应的workInProgress fiber
+
   const hook = mountWorkInProgressHook();
+  // 形成hook链表
 
   let nextSnapshot;
   const isHydrating = getIsHydrating();
@@ -1507,7 +1512,10 @@ function mountSyncExternalStore<T>(
       }
     }
   } else {
-    nextSnapshot = getSnapshot();
+
+    // 不是混合
+    nextSnapshot = getSnapshot(); // 直接执行getSnapshot函数获取快照
+
     if (__DEV__) {
       if (!didWarnUncachedGetSnapshot) {
         const cachedSnapshot = getSnapshot();
@@ -1542,15 +1550,30 @@ function mountSyncExternalStore<T>(
   // Read the current snapshot from the store on every render. This breaks the
   // normal rules of React, and only works because store updates are
   // always synchronous.
-  hook.memoizedState = nextSnapshot;
-  const inst: StoreInstance<T> = {
-    value: nextSnapshot,
-    getSnapshot,
-  };
-  hook.queue = inst;
+  hook.memoizedState = nextSnapshot; // 还是把新的快照存储在hook对象的memoizedState属性上 // +++
 
+  // 准备存储实例
+  const inst: StoreInstance<T> = {
+    value: nextSnapshot, // value为新的快照值
+    getSnapshot, // 获取快照函数
+  };
+
+  hook.queue = inst; // 直接把存储实例放在hook对象的queue属性上
+
+  // 调度一个effect来去订阅store
   // Schedule an effect to subscribe to the store.
-  mountEffect(subscribeToStore.bind(null, fiber, inst, subscribe), [subscribe]);
+  mountEffect(subscribeToStore.bind(null, fiber, inst, subscribe), [subscribe]); // 订阅存储函数
+  // 相当于useEffect api的使用：依赖数组为subscribe订阅函数
+  // create函数为subscribeToStore绑定返回的函数 - 它绑定的值为fiber, inst, subscribe
+
+
+  // 直接作用就是会再次构建hook对象形成hook链表
+  // 准备一个新的effect对象放在hook对象的memoizedState属性上
+  // 然后给workInProgress fiber创建函数式组件updateQueue
+  // 让新的effect对象形成一个环形链表，然后把这个新的effect对象放在updateQueue的lastEffect属性上
+  // 这样每次就能够通过lastEffect的next属性获取环形链表的第一个effect对象了
+  // 只会使用第一个effect对象直接通过next来去遍历整个环形链表 即可 ~
+
 
   // Schedule an effect to update the mutable instance fields. We will update
   // this whenever subscribe, getSnapshot, or value changes. Because there's no
@@ -1559,28 +1582,42 @@ function mountSyncExternalStore<T>(
   // don't need to set a static flag, either.
   // TODO: We can move this to the passive phase once we add a pre-commit
   // consistency check. See the next comment.
-  fiber.flags |= PassiveEffect;
+  fiber.flags |= PassiveEffect; // 给fiber的flags标记PassiveEffect
+  // 这个标记在上面的mountEffect函数中已经标记过了
+
+  // 这里再次创建一个effect对象以便于和之前的updateQueue形成环形链表，然后更新updateQueue上的lastEffect属性为当前新的effect对象
   pushEffect(
     HookHasEffect | HookPassive,
-    updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot),
+    // create
+    updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot), // 更新仓库实例函数 - 绑定参数fiber, inst, nextSnapshot, getSnapshot
+    // destroy
     undefined,
+    // deps
     null,
   );
 
   return nextSnapshot;
 }
 
+// 更新同步外部存储
 function updateSyncExternalStore<T>(
   subscribe: (() => void) => () => void,
   getSnapshot: () => T,
   getServerSnapshot?: () => T,
 ): T {
-  const fiber = currentlyRenderingFiber;
+  const fiber = currentlyRenderingFiber; // wip fiber
+
   const hook = updateWorkInProgressHook();
+  // 浅克隆
+  // 这里主要是hook.memoizedState因为它是current hook的memoizedState也就是上一次执行getSnapshot函数返回的值
+  // 还有它的queue属性，因为它是current hook上的queue属性也就是上一次准备的【存储实例的值】
+
   // Read the current snapshot from the store on every render. This breaks the
   // normal rules of React, and only works because store updates are
   // always synchronous.
-  const nextSnapshot = getSnapshot();
+
+  const nextSnapshot = getSnapshot(); // 再次执行getSnapshot函数得到新的快照值
+  
   if (__DEV__) {
     if (!didWarnUncachedGetSnapshot) {
       const cachedSnapshot = getSnapshot();
@@ -1592,34 +1629,60 @@ function updateSyncExternalStore<T>(
       }
     }
   }
-  const prevSnapshot = hook.memoizedState;
-  const snapshotChanged = !is(prevSnapshot, nextSnapshot);
-  if (snapshotChanged) {
-    hook.memoizedState = nextSnapshot;
-    markWorkInProgressReceivedUpdate();
-  }
-  const inst = hook.queue;
 
-  updateEffect(subscribeToStore.bind(null, fiber, inst, subscribe), [
+  const prevSnapshot = hook.memoizedState; // 之前的快照值
+
+  const snapshotChanged = !is(prevSnapshot, nextSnapshot); // Object.is算法是否一致
+
+  if (snapshotChanged) { // 变化了
+
+    hook.memoizedState = nextSnapshot; // 替换新的快照值
+
+    // ./ReactFiberBeginWork.new.js
+    /* 
+    export function markWorkInProgressReceivedUpdate() {
+      didReceiveUpdate = true;
+    }
+    */
+    markWorkInProgressReceivedUpdate(); // 标记didReceiveUpdate这个全局变量为true
+  }
+
+
+  const inst = hook.queue; // 取出存储实例
+
+  // 还是相当于使用useEffect：依赖数组为订阅函数
+  updateEffect(subscribeToStore.bind(null, fiber, inst, subscribe), [ // 订阅存储函数 - 绑定的值为fiber, inst, subscribe
     subscribe,
   ]);
+  // subscribe函数若变化了那么这个hook对象的memoizedState存储的effect对象的tag就多了个HookHasEffect这个标记
+  // 注意不管是否变化那么都会向wip fiber的updateQueue中形成一个effect链表的
+  // 只是没有变化的话这个effect对象的tag就少了HookHasEffect标记
+  // 而这个标记将直接导致在commitRootImpl中的flushPassiveEffects中是否执行这个effect的destroy函数和create函数的 // +++
+  
+
 
   // Whenever getSnapshot or subscribe changes, we need to check in the
   // commit phase if there was an interleaved mutation. In concurrent mode
   // this can happen all the time, but even in synchronous mode, an earlier
   // effect may have mutated the store.
   if (
-    inst.getSnapshot !== getSnapshot ||
-    snapshotChanged ||
+    inst.getSnapshot !== getSnapshot || // 实例里面存储的获取快照函数不一样
+    snapshotChanged || // 或者快照前后值变化了
+    // 检查订阅函数是否改变。我们可以通过检查是否调度了上面的订阅effect来节省一些内存。
+
     // Check if the susbcribe function changed. We can save some memory by
     // checking whether we scheduled a subscription effect above.
     (workInProgressHook !== null &&
-      workInProgressHook.memoizedState.tag & HookHasEffect)
+      workInProgressHook.memoizedState.tag & HookHasEffect) // 或者上面的使用的useEffect对应的hook的effect对象的tag有HookHasEffect标记，说明subscribe函数变化了
   ) {
-    fiber.flags |= PassiveEffect;
+    // 那么标记
+    // 然后再向updateQueue中再形成一个effect对象
+    fiber.flags |= PassiveEffect; // 标记wip fiber的flags为PassiveEffect
+
+    // 还是创建一个effect对象以便于和之前的updateQueue形成环形链表，然后更新updateQueue上的lastEffect属性为当前新的effect对象
     pushEffect(
       HookHasEffect | HookPassive,
-      updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot),
+      updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot), // 更新仓库实例函数 - 绑定的值依旧是fiber, inst, nextSnapshot, getSnapshot
       undefined,
       null,
     );
@@ -1640,6 +1703,7 @@ function updateSyncExternalStore<T>(
     }
   }
 
+  // 返回新的快照值 // +++
   return nextSnapshot;
 }
 
@@ -1668,6 +1732,7 @@ function pushStoreConsistencyCheck<T>(
   }
 }
 
+// 更新存储实例函数
 function updateStoreInstance<T>(
   fiber: Fiber,
   inst: StoreInstance<T>,
@@ -1677,45 +1742,62 @@ function updateStoreInstance<T>(
   // These are updated in the passive phase
   inst.value = nextSnapshot;
   inst.getSnapshot = getSnapshot;
+  // 直接更新
 
   // Something may have been mutated in between render and commit. This could
   // have been in an event that fired before the passive effects, or it could
   // have been in a layout effect. In that case, we would have used the old
   // snapsho and getSnapshot values to bail out. We need to check one more time.
-  if (checkIfSnapshotChanged(inst)) {
+  if (checkIfSnapshotChanged(inst)) { // 检查这个仓库实例的快照是否变化了
     // Force a re-render.
-    forceStoreRerender(fiber);
+    forceStoreRerender(fiber); // 做一个强制的重新渲染 // +++
   }
 }
 
+// +++
+// 这两个函数的执行都是在commit阶段中scheduleCallback执行使用postMessage产生的【宏任务】 - 执行flushPassiveEffects函数中执行的
+// 异步执行的且是在更新完dom之后
+// +++
+
+// 订阅存储函数
 function subscribeToStore<T>(fiber, inst: StoreInstance<T>, subscribe) {
+
+  // 处理仓库变化的函数
   const handleStoreChange = () => {
     // The store changed. Check if the snapshot changed since the last time we
     // read from the store.
-    if (checkIfSnapshotChanged(inst)) {
+    if (checkIfSnapshotChanged(inst)) { // 检查这个仓库实例的快照是否变化了
       // Force a re-render.
-      forceStoreRerender(fiber);
+      forceStoreRerender(fiber); // 做一个强制的重新渲染 // +++
     }
   };
+
+  // 订阅仓库并返回清理功能。
   // Subscribe to the store and return a clean-up function.
-  return subscribe(handleStoreChange);
+  return subscribe(handleStoreChange); // 执行useSyncExternalStore函数传入的订阅函数 - 并给它传入一个函数
 }
 
+// 检查快照是否变化了
 function checkIfSnapshotChanged<T>(inst: StoreInstance<T>): boolean {
   const latestGetSnapshot = inst.getSnapshot;
-  const prevValue = inst.value;
+  const prevValue = inst.value; // 之前的值
   try {
-    const nextValue = latestGetSnapshot();
-    return !is(prevValue, nextValue);
+    const nextValue = latestGetSnapshot(); // 再次执行获取快照函数得到新的值
+    return !is(prevValue, nextValue); // 是否变化了
   } catch (error) {
     return true;
   }
 }
 
+// 强制store重新渲染
 function forceStoreRerender(fiber) {
-  const root = enqueueConcurrentRenderForLane(fiber, SyncLane);
+  // 为车道入队列并发渲染
+  // 注意：同步车道 // +++
+  const root = enqueueConcurrentRenderForLane(fiber, SyncLane); // 返回FiberRootNode
+
   if (root !== null) {
-    scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+    // 注意：同步车道 // +++
+    scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp); // 还是在fiber上调度更新
   }
 }
 
@@ -3645,6 +3727,7 @@ if (__DEV__) {
       mountHookTypesDev();
       return mountMutableSource(source, getSnapshot, subscribe);
     },
+    // OnMount期间的useSyncExternalStore
     useSyncExternalStore<T>(
       subscribe: (() => void) => () => void,
       getSnapshot: () => T,
@@ -3652,7 +3735,15 @@ if (__DEV__) {
     ): T {
       currentHookNameInDev = 'useSyncExternalStore';
       mountHookTypesDev();
-      return mountSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+      // 三个参数都是函数 // +++
+      /* 
+      react-redux v8.0.4
+      useSelector使用的是packages/use-sync-external-store/src/useSyncExternalStoreWithSelector.js这个api
+      而这个api是基于这个hook的
+      */
+      // 内部其实就是使用了useEffect这个hook，达到在更新完毕dom之后执行订阅函数并给订阅函数传入一个参数函数【处理store变化函数，内部其实就是做一个重新渲染 - 优先级为同步车道】
+      // getSnapshot函数【每次都会执行】的（不管是在挂载还是更新）
+      return mountSyncExternalStore(subscribe, getSnapshot, getServerSnapshot); // 挂载同步外部储存
     },
     useId(): string {
       currentHookNameInDev = 'useId';
@@ -3993,6 +4084,7 @@ if (__DEV__) {
       updateHookTypesDev();
       return updateMutableSource(source, getSnapshot, subscribe);
     },
+    // OnUpdate期间的useSyncExternalStore
     useSyncExternalStore<T>(
       subscribe: (() => void) => () => void,
       getSnapshot: () => T,
@@ -4000,7 +4092,7 @@ if (__DEV__) {
     ): T {
       currentHookNameInDev = 'useSyncExternalStore';
       updateHookTypesDev();
-      return updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+      return updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot); // 更新同步外部存储
     },
     useId(): string {
       currentHookNameInDev = 'useId';

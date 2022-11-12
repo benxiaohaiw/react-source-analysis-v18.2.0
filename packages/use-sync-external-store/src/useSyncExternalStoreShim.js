@@ -14,6 +14,7 @@ import {useSyncExternalStore as builtInAPI} from 'react';
 
 const shim = isServerEnvironment ? server : client;
 
+// 还是react中的useSyncExternalStore api
 export const useSyncExternalStore: <T>(
   subscribe: (() => void) => () => void,
   getSnapshot: () => T,

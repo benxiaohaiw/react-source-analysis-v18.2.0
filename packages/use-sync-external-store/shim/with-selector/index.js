@@ -9,4 +9,5 @@
 
 'use strict';
 
+// react-redux v8.0.4使用了这个api
 export {useSyncExternalStoreWithSelector} from 'use-sync-external-store/src/useSyncExternalStoreWithSelector';

@@ -9,4 +9,5 @@
 
 'use strict';
 
+// useSyncExternalStore api
 export {useSyncExternalStore} from 'use-sync-external-store/src/useSyncExternalStoreShim';

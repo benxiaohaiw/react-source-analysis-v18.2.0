@@ -13,6 +13,7 @@
 // dispatch for CommonJS interop named imports.
 import * as React from 'react';
 
+// 还是useSyncExternalStore这个api
 export const useSyncExternalStore = React.useSyncExternalStore;
 
 if (__DEV__) {
