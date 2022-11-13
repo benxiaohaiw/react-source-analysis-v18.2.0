@@ -513,6 +513,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
     }
   }
 
+  // 创建child // +++
   function createChild(
     returnFiber: Fiber,
     newChild: any,
@@ -1728,6 +1729,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
   // This API will tag the children with the side-effect of the reconciliation
   // itself. They will be added to the side-effect list as we pass through the
   // children and the parent.
+  // +++
   function reconcileChildFibers( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     returnFiber: Fiber,
     currentFirstChild: Fiber | null,
@@ -1750,6 +1752,10 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
     if (isUnkeyedTopLevelFragment) { // 如果是则取出它的孩子即可 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       newChild = newChild.props.children;
     }
+
+    // 对newChild的类型做出判断 // +++
+    // 主要还是packages/react-reconciler/src/ReactFiber.new.js下的类似于createFiberFromElement的api // +++
+    // 具体可以看下面不同的判断对应的分支逻辑 // +++
 
     // 处理对象类型 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Handle object types

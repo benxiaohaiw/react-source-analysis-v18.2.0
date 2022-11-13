@@ -915,11 +915,13 @@ function completeWork(
     case Fragment:
     case Mode:
     case Profiler:
-    case ContextConsumer:
+    case ContextConsumer: // 上下文消费者 // +++
     case MemoComponent:
+      
       // 仅仅在这里进行冒泡属性
       bubbleProperties(workInProgress); // 冒泡属性 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      
       return null; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     
@@ -1461,11 +1463,17 @@ function markUpdate(workInProgress: Fiber) {
       }
       bubbleProperties(workInProgress);
       return null;
-    case ContextProvider:
+    case ContextProvider: // 上下文提供者 // +++
+
+      // 弹出提供者fiber // +++
       // Pop provider fiber
       const context: ReactContext<any> = workInProgress.type._context;
-      popProvider(context, workInProgress);
-      bubbleProperties(workInProgress);
+
+      // 弹出提供者 // +++
+      popProvider(context, workInProgress); // +++
+      
+      bubbleProperties(workInProgress); // 冒泡属性 // +++
+      
       return null;
     case IncompleteClassComponent: {
       // Same as class component case. I put it down here so that the tags are

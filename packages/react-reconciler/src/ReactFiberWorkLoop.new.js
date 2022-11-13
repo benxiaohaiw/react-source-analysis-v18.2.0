@@ -2210,7 +2210,8 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
       handleThrow(root, thrownValue);
     }
   } while (true);
-  resetContextDependencies();
+
+  resetContextDependencies(); // +++
 
   executionContext = prevExecutionContext;
   popDispatcher(prevDispatcher);
@@ -2334,7 +2335,8 @@ function renderRootConcurrent(root: FiberRoot, lanes: Lanes) {
       }
     }
   } while (true);
-  resetContextDependencies();
+
+  resetContextDependencies(); // +++
 
   popDispatcher(prevDispatcher);
   popCacheDispatcher(prevCacheDispatcher);

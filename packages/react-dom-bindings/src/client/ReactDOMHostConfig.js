@@ -390,7 +390,9 @@ export function getCurrentEventPriority(): EventPriority {
   return getEventPriority(currentEvent.type); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
-export const isPrimaryRenderer = true;
+// 一个常量 - 是否为主渲染器 - 值为true
+export const isPrimaryRenderer = true; // +++
+
 export const warnsIfNotActing = true;
 // This initialization code may run even on server environments
 // if a component just imports ReactDOM (e.g. for findDOMNode).

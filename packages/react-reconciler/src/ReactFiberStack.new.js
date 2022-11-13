@@ -21,16 +21,21 @@ if (__DEV__) {
 
 let index = -1;
 
+// 创建游标 // +++
 function createCursor<T>(defaultValue: T): StackCursor<T> {
+  
+  // 准备游标对象
   return {
-    current: defaultValue,
+    current: defaultValue, // +++
   };
+
 }
 
 function isEmpty(): boolean {
   return index === -1;
 }
 
+// 弹出 // +++
 function pop<T>(cursor: StackCursor<T>, fiber: Fiber): void {
   if (index < 0) {
     if (__DEV__) {
@@ -45,8 +50,10 @@ function pop<T>(cursor: StackCursor<T>, fiber: Fiber): void {
     }
   }
 
+  // 把之前的值存入cursor.current
   cursor.current = valueStack[index];
 
+  // 置为null
   valueStack[index] = null;
 
   if (__DEV__) {
@@ -56,15 +63,18 @@ function pop<T>(cursor: StackCursor<T>, fiber: Fiber): void {
   index--;
 }
 
+// push方法
 function push<T>(cursor: StackCursor<T>, value: T, fiber: Fiber): void {
   index++;
 
+  // 值栈 - 存之前的值 // +++
   valueStack[index] = cursor.current;
 
   if (__DEV__) {
     fiberStack[index] = fiber;
   }
 
+  // 存入新的value值 // +++
   cursor.current = value;
 }
 

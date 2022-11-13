@@ -405,7 +405,12 @@ function updateForwardRef(
   // The rest is a fork of updateFunctionComponent
   let nextChildren;
   let hasId;
-  prepareToReadContext(workInProgress, renderLanes);
+
+
+  // 准备去读取上下文
+  prepareToReadContext(workInProgress, renderLanes); // +++
+  
+  
   if (enableSchedulingProfiler) {
     markComponentRenderStarted(workInProgress);
   }
@@ -918,8 +923,13 @@ function updateCacheComponent(
     return null;
   }
 
-  prepareToReadContext(workInProgress, renderLanes);
-  const parentCache = readContext(CacheContext);
+  
+  // 准备去读取上下文
+  prepareToReadContext(workInProgress, renderLanes); // +++
+  
+  
+  // 读取上下文
+  const parentCache = readContext(CacheContext); // +++
 
   if (current === null) {
     // Initial mount. Request a fresh cache from the pool.
@@ -1114,7 +1124,11 @@ function updateFunctionComponent(
 
   let nextChildren;
   let hasId;
-  prepareToReadContext(workInProgress, renderLanes);
+
+  // 准备去读取上下文
+  prepareToReadContext(workInProgress, renderLanes); // +++
+  
+  
   if (enableSchedulingProfiler) {
     markComponentRenderStarted(workInProgress);
   }
@@ -1269,7 +1283,11 @@ function updateClassComponent(
   } else {
     hasContext = false;
   }
-  prepareToReadContext(workInProgress, renderLanes);
+
+  
+  // 准备去读取上下文
+  prepareToReadContext(workInProgress, renderLanes); // +++
+
 
   const instance = workInProgress.stateNode; // 实例对象 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   let shouldUpdate;
@@ -1901,7 +1919,11 @@ function mountIncompleteClassComponent(
   } else {
     hasContext = false;
   }
-  prepareToReadContext(workInProgress, renderLanes);
+
+  
+  // 准备去读取上下文
+  prepareToReadContext(workInProgress, renderLanes); // +++
+
 
   constructClassInstance(workInProgress, Component, nextProps);
   mountClassInstance(workInProgress, Component, nextProps, renderLanes);
@@ -1936,7 +1958,15 @@ function mountIndeterminateComponent(
     context = getMaskedContext(workInProgress, unmaskedContext);
   }
 
-  prepareToReadContext(workInProgress, renderLanes);
+  
+  // 准备去读取上下文 // +++
+  prepareToReadContext(workInProgress, renderLanes); // +++
+  // packages/react-reconciler/src/ReactFiberNewContext.new.js下的currentlyRenderingFiber记住这个wip
+  // 然后把lastContextDependency、lastFullyObservedContext等变量置为null
+  // 对于Counter函数式组件来讲在一开始挂载不确定组件里面在这里主要是这个逻辑 // +++
+  // 下面再进行确定是否为函数式组件的 // +++
+  
+  
   let value;
   let hasId;
 
@@ -1967,6 +1997,8 @@ function mountIndeterminateComponent(
 
     setIsRendering(true);
     ReactCurrentOwner.current = workInProgress;
+    
+    
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // react-reconciler/src/ReactFiberHooks.new.js中的renderWithHooks函数
     value = renderWithHooks( // 带有hooks的渲染 - 产生虚拟dom元素 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1976,10 +2008,14 @@ function mountIndeterminateComponent(
       props,
       context,
       renderLanes,
-    );
+    ); // +++
+
+    
     hasId = checkDidRenderIdHook();
     setIsRendering(false);
   } else {
+
+    // +++
     value = renderWithHooks( // 带有hooks的渲染 - 产生虚拟dom元素
       null,
       workInProgress,
@@ -1988,6 +2024,7 @@ function mountIndeterminateComponent(
       context,
       renderLanes,
     );
+
     hasId = checkDidRenderIdHook();
   }
   if (enableSchedulingProfiler) {
@@ -3526,18 +3563,19 @@ function updatePortalComponent(
 
 let hasWarnedAboutUsingNoValuePropOnContextProvider = false;
 
+// 更新上下文提供者 // +++
 function updateContextProvider(
   current: Fiber | null,
   workInProgress: Fiber,
   renderLanes: Lanes,
 ) {
-  const providerType: ReactProviderType<any> = workInProgress.type;
-  const context: ReactContext<any> = providerType._context;
+  const providerType: ReactProviderType<any> = workInProgress.type; // react元素的type值 // +++
+  const context: ReactContext<any> = providerType._context; // 就是createContext中的创建出来的context对象
 
-  const newProps = workInProgress.pendingProps;
+  const newProps = workInProgress.pendingProps; // 它就是react元素的props对象
   const oldProps = workInProgress.memoizedProps;
 
-  const newValue = newProps.value;
+  const newValue = newProps.value; // 取出react元素中props对象的value属性
 
   if (__DEV__) {
     if (!('value' in newProps)) {
@@ -3555,7 +3593,10 @@ function updateContextProvider(
     }
   }
 
-  pushProvider(workInProgress, context, newValue);
+  // packages/react-reconciler/src/ReactFiberNewContext.new.js
+  // 推入提供者 // +++
+  pushProvider(workInProgress, context, newValue); // +++
+  // 其实大概的逻辑就是context._currentValue = newValue // ++++++
 
   if (enableLazyContextPropagation) {
     // In the lazy propagation implementation, we don't scan for matching
@@ -3563,41 +3604,58 @@ function updateContextProvider(
     // we're going to visit those nodes, anyway. The trade-off is that it shifts
     // responsibility to the consumer to track whether something has changed.
   } else {
+
+    // wip的老属性是否有
     if (oldProps !== null) {
+      // 老的value值
       const oldValue = oldProps.value;
-      if (is(oldValue, newValue)) {
+
+      // Object.is算法
+      if (is(oldValue, newValue)) { // +++
+        // 没变。如果孩子也一样，请尽早救助。
         // No change. Bailout early if children are the same.
         if (
           oldProps.children === newProps.children &&
           !hasLegacyContextChanged()
         ) {
-          return bailoutOnAlreadyFinishedWork(
+          // ++++++
+          return bailoutOnAlreadyFinishedWork( // 新旧value的值一样且孩子也是一样的那么尽早的返回wip fiber的child的alternate并把它放在wip fiber的child上
+          // 注意：在createWorkInProgress中wip fiber的child是还是指向current fiber的child的 // ++++++
             current,
             workInProgress,
             renderLanes,
           );
         }
       } else {
+
+        // 上下文值更改。搜索匹配的【消费者】并【调度它们进行更新】。 // +++
         // The context value changed. Search for matching consumers and schedule
         // them to update.
-        propagateContextChange(workInProgress, context, renderLanes);
+        propagateContextChange(workInProgress, context, renderLanes); // +++
+        // 传播上下文改变
+      
       }
     }
   }
 
-  const newChildren = newProps.children;
+  const newChildren = newProps.children; // 取出react元素props对象的children属性
+
+  // +++
   reconcileChildren(current, workInProgress, newChildren, renderLanes);
+
+  // +++
   return workInProgress.child;
 }
 
 let hasWarnedAboutUsingContextAsConsumer = false;
 
-function updateContextConsumer(
+// 更新上下文消费者 // +++
+function updateContextConsumer( // +++
   current: Fiber | null,
   workInProgress: Fiber,
   renderLanes: Lanes,
 ) {
-  let context: ReactContext<any> = workInProgress.type;
+  let context: ReactContext<any> = workInProgress.type; // 它其实就是react元素中的type也就是createContext所产生的context对象 // +++
   // The logic below for Context differs depending on PROD or DEV mode. In
   // DEV mode, we create a separate object for Context.Consumer that acts
   // like a proxy to Context. This proxy object adds unnecessary code in PROD
@@ -3623,8 +3681,27 @@ function updateContextConsumer(
       context = (context: any)._context;
     }
   }
-  const newProps = workInProgress.pendingProps;
-  const render = newProps.children;
+
+
+  const newProps = workInProgress.pendingProps; // 也就是react元素的props对象
+  const render = newProps.children; // 取出children属性 - 它是一个函数 // +++
+  /* 
+  https://babeljs.io/repl
+  <XxxContext.Consumer>
+    {
+      (xxx) => {
+        return (xxx)
+      }
+    }
+  </XxxContext.Consumer>
+  */
+
+  // "use strict";
+
+  // /*#__PURE__*/React.createElement(XxxContext.Consumer, null, function (xxx) {
+  //   return xxx;
+  // });
+  
 
   if (__DEV__) {
     if (typeof render !== 'function') {
@@ -3637,28 +3714,50 @@ function updateContextConsumer(
     }
   }
 
-  prepareToReadContext(workInProgress, renderLanes);
-  const newValue = readContext(context);
+
+  // +++
+  // 准备去读取上下文
+  prepareToReadContext(workInProgress, renderLanes); // +++
+
+  // 读取上下文
+  // +++
+  // 相当于useContext hook
+  const newValue = readContext(context); // +++
+
+
   if (enableSchedulingProfiler) {
     markComponentRenderStarted(workInProgress);
   }
+
+
   let newChildren;
+  
+  
   if (__DEV__) {
     ReactCurrentOwner.current = workInProgress;
     setIsRendering(true);
-    newChildren = render(newValue);
+
+    // 直接调用此函数返回它的新的孩子 // +++
+    newChildren = render(newValue); // +++
+    
     setIsRendering(false);
   } else {
-    newChildren = render(newValue);
+
+    // +++
+    newChildren = render(newValue); // +++
+  
   }
   if (enableSchedulingProfiler) {
     markComponentRenderStopped();
   }
 
   // React DevTools reads this flag.
-  workInProgress.flags |= PerformedWork;
-  reconcileChildren(current, workInProgress, newChildren, renderLanes);
-  return workInProgress.child;
+  workInProgress.flags |= PerformedWork; // +++
+
+  // +++
+  reconcileChildren(current, workInProgress, newChildren, renderLanes); // +++
+  
+  return workInProgress.child; // +++
 }
 
 function updateScopeComponent(current, workInProgress, renderLanes) {
@@ -3669,8 +3768,9 @@ function updateScopeComponent(current, workInProgress, renderLanes) {
   return workInProgress.child;
 }
 
+// 标记wip已接受更新 +++
 export function markWorkInProgressReceivedUpdate() {
-  didReceiveUpdate = true;
+  didReceiveUpdate = true; // +++
 }
 
 export function checkIfWorkInProgressReceivedUpdate(): boolean {
@@ -4313,10 +4413,15 @@ function beginWork(
       return updateMode(current, workInProgress, renderLanes);
     case Profiler:
       return updateProfiler(current, workInProgress, renderLanes);
-    case ContextProvider:
-      return updateContextProvider(current, workInProgress, renderLanes);
-    case ContextConsumer:
-      return updateContextConsumer(current, workInProgress, renderLanes);
+    
+    // +++
+    case ContextProvider: // <XxxContext.Provider>
+      return updateContextProvider(current, workInProgress, renderLanes); // 更新上下文提供者 +++
+    
+    // +++
+    case ContextConsumer: // <XxxContext.Consumer>
+      return updateContextConsumer(current, workInProgress, renderLanes); // 更新上下文消费者 +++
+    
     case MemoComponent: {
       const type = workInProgress.type;
       const unresolvedProps = workInProgress.pendingProps;

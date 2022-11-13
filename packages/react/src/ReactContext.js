@@ -11,34 +11,60 @@ import {REACT_PROVIDER_TYPE, REACT_CONTEXT_TYPE} from 'shared/ReactSymbols';
 
 import type {ReactContext} from 'shared/ReactTypes';
 
+/* 
+https://babeljs.io/repl
+
+<XxxContext.Provider
+  value={{
+    name: '张佳宁'
+  }}
+>
+  <Counter/>
+</XxxContext.Provider>
+*/
+
+// ---
+
+// "use strict";
+
+// /*#__PURE__*/React.createElement(XxxContext.Provider, {
+//   value: {
+//     name: '张佳宁'
+//   }
+// }, /*#__PURE__*/React.createElement(Counter, null));
+
+
+// 创建上下文 api
 export function createContext<T>(defaultValue: T): ReactContext<T> {
   // TODO: Second argument used to be an optional `calculateChangedBits`
   // function. Warn to reserve for future use?
 
+  // 准备一个上下文对象
   const context: ReactContext<T> = {
-    $$typeof: REACT_CONTEXT_TYPE,
+    $$typeof: REACT_CONTEXT_TYPE, // 类型 // +++
     // As a workaround to support multiple concurrent renderers, we categorize
     // some renderers as primary and others as secondary. We only expect
     // there to be two concurrent renderers at most: React Native (primary) and
     // Fabric (secondary); React DOM (primary) and React ART (secondary).
     // Secondary renderers store their context values on separate fields.
-    _currentValue: defaultValue,
+    _currentValue: defaultValue, // 直接存入这个默认值 // +++
     _currentValue2: defaultValue,
     // Used to track how many concurrent renderers this context currently
     // supports within in a single renderer. Such as parallel server rendering.
     _threadCount: 0,
     // These are circular
-    Provider: (null: any),
-    Consumer: (null: any),
+    Provider: (null: any), // +++
+    Consumer: (null: any), // +++
 
     // Add these to use same hidden class in VM as ServerContext
     _defaultValue: (null: any),
     _globalName: (null: any),
   };
 
+  // 赋值Provider
   context.Provider = {
-    $$typeof: REACT_PROVIDER_TYPE,
-    _context: context,
+    $$typeof: REACT_PROVIDER_TYPE, // +++
+    _context: context, // 存储这个上下文对象 +++
   };
 
   let hasWarnedAboutUsingNestedContextConsumers = false;
@@ -125,7 +151,9 @@ export function createContext<T>(defaultValue: T): ReactContext<T> {
     // $FlowFixMe: Flow complains about missing properties because it doesn't understand defineProperty
     context.Consumer = Consumer;
   } else {
-    context.Consumer = context;
+
+    // Consumer直接是这个context对象
+    context.Consumer = context; // +++
   }
 
   if (__DEV__) {
@@ -133,5 +161,6 @@ export function createContext<T>(defaultValue: T): ReactContext<T> {
     context._currentRenderer2 = null;
   }
 
-  return context;
+  // 返回这个context对象 
+  return context; // +++
 }

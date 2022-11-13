@@ -3666,8 +3666,9 @@ if (__DEV__) {
 
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   HooksDispatcherOnMountInDEV = {
+    // 读取上下文 // +++
     readContext<T>(context: ReactContext<T>): T {
-      return readContext(context);
+      return readContext(context); // 读取上下文 // +++
     },
     // OnMount期间的useCallback
     useCallback<T>(callback: T, deps: Array<mixed> | void | null): T {
@@ -3676,10 +3677,12 @@ if (__DEV__) {
       checkDepsAreArrayDev(deps);
       return mountCallback(callback, deps); // 挂载cb // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
+    // OnMount期间的useContext
     useContext<T>(context: ReactContext<T>): T {
       currentHookNameInDev = 'useContext';
       mountHookTypesDev();
-      return readContext(context);
+      // ./ReactFiberNewContext.new.js下的readContext函数 // +++
+      return readContext(context); // 读取上下文 // +++
     },
     // OnMount期间的useEffect // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     useEffect(
@@ -4010,8 +4013,10 @@ if (__DEV__) {
 
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   HooksDispatcherOnUpdateInDEV = {
+
+    // 读取上下文
     readContext<T>(context: ReactContext<T>): T {
-      return readContext(context);
+      return readContext(context); // 读取上下文
     },
     // OnUpdate期间的useCallback
     useCallback<T>(callback: T, deps: Array<mixed> | void | null): T {
@@ -4019,10 +4024,11 @@ if (__DEV__) {
       updateHookTypesDev();
       return updateCallback(callback, deps); // 更新cb // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
+    // OnUpdate期间的useContext
     useContext<T>(context: ReactContext<T>): T {
       currentHookNameInDev = 'useContext';
       updateHookTypesDev();
-      return readContext(context);
+      return readContext(context); // 还是./ReactFiberNewContext.new.js下的读取上下文函数 // +++
     },
 
     // OnUpdate期间的useEffect // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -911,7 +911,10 @@ export function initializeUpdateQueue<State>(fiber: Fiber): void {
 
   const contextType = ctor.contextType;
   if (typeof contextType === 'object' && contextType !== null) {
-    instance.context = readContext(contextType);
+    
+    // 读取上下文 // +++
+    instance.context = readContext(contextType); // +++
+
   } else if (disableLegacyContext) {
     instance.context = emptyContextObject;
   } else {
@@ -1188,7 +1191,12 @@ function updateClassInstance(
   const contextType = ctor.contextType;
   let nextContext = emptyContextObject;
   if (typeof contextType === 'object' && contextType !== null) {
-    nextContext = readContext(contextType);
+
+
+    // 读取上下文 // +++
+    nextContext = readContext(contextType); // +++
+
+
   } else if (!disableLegacyContext) {
     const nextUnmaskedContext = getUnmaskedContext(workInProgress, ctor, true);
     nextContext = getMaskedContext(workInProgress, nextUnmaskedContext);

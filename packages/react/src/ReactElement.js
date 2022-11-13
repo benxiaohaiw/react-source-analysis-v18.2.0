@@ -145,16 +145,18 @@ function warnIfStringRefCannotBeAutoConverted(config) {
  * indicating filename, line number, and/or other information.
  * @internal
  */
-const ReactElement = function(type, key, ref, self, source, owner, props) {
+const ReactElement = function(type, key, ref, self, source, owner, props) { // ReactElement api
+
+  // 准备element对象
   const element = {
     // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
+    $$typeof: REACT_ELEMENT_TYPE, // 在这里不管是什么统统先默认为REACT_ELEMENT_TYPE // +++
 
     // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: ref,
-    props: props,
+    type: type, // type
+    key: key, // key
+    ref: ref, // ref
+    props: props, // props对象
 
     // Record the component responsible for creating this element.
     _owner: owner,
@@ -198,6 +200,7 @@ const ReactElement = function(type, key, ref, self, source, owner, props) {
     }
   }
 
+  // 直接返回这个element对象 // +++
   return element;
 };
 
@@ -359,12 +362,13 @@ export function jsxDEV(type, config, maybeKey, source, self) {
  * Create and return a new ReactElement of the given type.
  * See https://reactjs.org/docs/react-api.html#createelement
  */
-export function createElement(type, config, children) {
+export function createElement(type, config, children) { // createElement api
   let propName;
 
   // Reserved names are extracted
-  const props = {};
+  const props = {}; // 准备props对象 // +++
 
+  // 准备以下单独的属性 // +++
   let key = null;
   let ref = null;
   let self = null;
@@ -372,7 +376,7 @@ export function createElement(type, config, children) {
 
   if (config != null) {
     if (hasValidRef(config)) {
-      ref = config.ref;
+      ref = config.ref; // 取出ref - 赋值 // +++
 
       if (__DEV__) {
         warnIfStringRefCannotBeAutoConverted(config);
@@ -388,7 +392,7 @@ export function createElement(type, config, children) {
     self = config.__self === undefined ? null : config.__self;
     source = config.__source === undefined ? null : config.__source;
     // Remaining properties are added to a new props object
-    for (propName in config) {
+    for (propName in config) { // 变量config对象存入props对象中 // +++
       if (
         hasOwnProperty.call(config, propName) &&
         !RESERVED_PROPS.hasOwnProperty(propName)
@@ -415,7 +419,9 @@ export function createElement(type, config, children) {
     }
     props.children = childArray;
   }
+  // 把children也整合到props对象中 - 它的值可能直接是某值，也可能是一个数组格式 // +++
 
+  // 解析默认的属性 - 在type的defaultProps属性对象上，将其遍历添加到props对象中
   // Resolve default props
   if (type && type.defaultProps) {
     const defaultProps = type.defaultProps;
@@ -439,14 +445,16 @@ export function createElement(type, config, children) {
       }
     }
   }
+
+  // 执行ReactElement函数
   return ReactElement(
-    type,
-    key,
-    ref,
+    type, // type
+    key, // key
+    ref, // ref
     self,
     source,
     ReactCurrentOwner.current,
-    props,
+    props, // props对象
   );
 }
 

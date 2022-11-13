@@ -343,9 +343,11 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
   // Clone the dependencies object. This is mutated during the render phase, so
   // it cannot be shared with the current fiber.
   const currentDependencies = current.dependencies;
+  // 浅克隆current.dependencies // +++
   workInProgress.dependencies =
     currentDependencies === null
       ? null
+      // 重新创建一个对象 - 但是里面的属性还是current.dependencies里面的进行复用 // +++
       : {
           lanes: currentDependencies.lanes,
           firstContext: currentDependencies.firstContext,
@@ -496,8 +498,8 @@ export function createHostRootFiber(
   return createFiber(HostRoot, null, null, mode); // 3 null null 1 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
-// 从类型和props上创建fiber
-export function createFiberFromTypeAndProps(
+// 从react元素的type和props上创建fiber // +++
+export function createFiberFromTypeAndProps( // +++
   type: any, // React$ElementType
   key: null | string,
   pendingProps: any,
@@ -506,20 +508,22 @@ export function createFiberFromTypeAndProps(
   lanes: Lanes,
 ): Fiber {
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  let fiberTag = IndeterminateComponent; // 不确定的组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  let fiberTag = IndeterminateComponent; // fiber的tag先是默认为不确定的组件标签 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // The resolved type is set if we know what the final type will be. I.e. it's not lazy.
   let resolvedType = type; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  if (typeof type === 'function') {
+  // 对type做类型判断以便于确定fiber的tag // +++
+  if (typeof type === 'function') { // 类式组件 | 函数式组件
     /* 
     function shouldConstruct(Component: Function) {
   const prototype = Component.prototype;
   return !!(prototype && prototype.isReactComponent);
 }
     */
+    // 仅仅确定类式组件
     if (shouldConstruct(type)) { // type为类组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-      fiberTag = ClassComponent; // 替换为ClassComponent // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      fiberTag = ClassComponent; // fiber的tag替换为ClassComponent // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
       if (__DEV__) {
@@ -549,10 +553,10 @@ export function createFiberFromTypeAndProps(
     } else if (enableHostSingletons && supportsSingletons) {
       fiberTag = isHostSingletonType(type) ? HostSingleton : HostComponent;
     } else {
-      fiberTag = HostComponent;
+      fiberTag = HostComponent; // 主机组件 - 也就是button、div、p等 // +++
     }
   } else {
-    getTag: switch (type) {
+    getTag: switch (type) { // 到这里react元素的type值可能直接是一个Symbol值或者是一个对象
       case REACT_FRAGMENT_TYPE:
         return createFiberFromFragment(pendingProps.children, mode, lanes, key);
       case REACT_STRICT_MODE_TYPE:
@@ -599,14 +603,15 @@ export function createFiberFromTypeAndProps(
         }
       // eslint-disable-next-line no-fallthrough
       default: {
+        // 到这里是个对象的话
         if (typeof type === 'object' && type !== null) {
-          switch (type.$$typeof) {
-            case REACT_PROVIDER_TYPE:
-              fiberTag = ContextProvider;
+          switch (type.$$typeof) { // 取出对象中的$$typeof属性
+            case REACT_PROVIDER_TYPE: // <XxxContext.Provider>
+              fiberTag = ContextProvider; // +++
               break getTag;
-            case REACT_CONTEXT_TYPE:
+            case REACT_CONTEXT_TYPE: // <XxxContext.Consumer>
               // This is a consumer
-              fiberTag = ContextConsumer;
+              fiberTag = ContextConsumer; // +++
               break getTag;
             case REACT_FORWARD_REF_TYPE:
               fiberTag = ForwardRef;
@@ -653,9 +658,11 @@ export function createFiberFromTypeAndProps(
   // 函数式组件的话这里的fiberTag就是IndeterminateComponent
   // 而类组件的话这里直接为ClassComponent // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   
+  // 创建fiber - 确定好fiber的tag
+  // 这个pendingProps就是react元素中的props对象 // +++
   const fiber = createFiber(fiberTag, pendingProps, key, mode); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  fiber.elementType = type; // 元素类型
-  fiber.type = resolvedType;
+  fiber.elementType = type; // 对应的react元素的type值 // +++
+  fiber.type = resolvedType; // 大概率正常情况下还是react元素的type值 // +++
   fiber.lanes = lanes;
 
   if (__DEV__) {
@@ -665,8 +672,8 @@ export function createFiberFromTypeAndProps(
   return fiber; // 返回fiber
 }
 
-// 从元素创建fiber
-export function createFiberFromElement(
+// 从react元素创建fiber // +++
+export function createFiberFromElement( // +++
   element: ReactElement,
   mode: TypeOfMode,
   lanes: Lanes,
@@ -675,13 +682,15 @@ export function createFiberFromElement(
   if (__DEV__) {
     owner = element._owner;
   }
-  const type = element.type;
-  const key = element.key;
-  const pendingProps = element.props;
-  const fiber = createFiberFromTypeAndProps( // 从类型和props上创建fiber
-    type,
-    key,
-    pendingProps,
+  const type = element.type; // 元素到的type
+  const key = element.key; // 元素的key
+  const pendingProps = element.props; // 元素的props对象
+
+  // +++
+  const fiber = createFiberFromTypeAndProps( // 从react的type和props上创建fiber // +++
+    type, // 元素的type
+    key, // 元素的key
+    pendingProps, // 元素的props对象
     owner,
     mode,
     lanes,
@@ -690,6 +699,8 @@ export function createFiberFromElement(
     fiber._debugSource = element._source;
     fiber._debugOwner = element._owner;
   }
+
+  // 直接返回这个fiber
   return fiber;
 }
 
