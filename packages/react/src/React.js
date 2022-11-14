@@ -33,7 +33,7 @@ import {
 } from './ReactElement';
 import {createContext} from './ReactContext';
 import {lazy} from './ReactLazy';
-import {forwardRef} from './ReactForwardRef';
+import {forwardRef} from './ReactForwardRef'; // +++
 import {memo} from './ReactMemo'; // +++
 import {cache} from './ReactCache';
 import {
@@ -98,7 +98,7 @@ export {
   PureComponent,
   createContext,
   createServerContext,
-  forwardRef,
+  forwardRef, // +++
   lazy,
   memo, // +++
   cache,

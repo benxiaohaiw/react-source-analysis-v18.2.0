@@ -616,8 +616,8 @@ export function createFiberFromTypeAndProps( // +++
               // This is a consumer
               fiberTag = ContextConsumer; // +++
               break getTag;
-            case REACT_FORWARD_REF_TYPE:
-              fiberTag = ForwardRef;
+            case REACT_FORWARD_REF_TYPE: // +++ 转发ref // +++
+              fiberTag = ForwardRef; // ForwardRef fiber标签 // +++
               if (__DEV__) {
                 resolvedType = resolveForwardRefForHotReloading(resolvedType);
               }

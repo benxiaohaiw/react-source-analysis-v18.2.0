@@ -7,7 +7,8 @@
 
 import {REACT_FORWARD_REF_TYPE, REACT_MEMO_TYPE} from 'shared/ReactSymbols';
 
-export function forwardRef<Props, ElementType: React$ElementType>(
+// 转发ref // +++
+export function forwardRef<Props, ElementType: React$ElementType>( // +++
   render: (props: Props, ref: React$Ref<ElementType>) => React$Node,
 ) {
   if (__DEV__) {
@@ -43,10 +44,12 @@ export function forwardRef<Props, ElementType: React$ElementType>(
     }
   }
 
+  // 准备元素类型
   const elementType = {
     $$typeof: REACT_FORWARD_REF_TYPE,
-    render,
+    render, // 其实它是一个函数式组件 // +++
   };
+
   if (__DEV__) {
     let ownName;
     Object.defineProperty(elementType, 'displayName', {
@@ -71,5 +74,7 @@ export function forwardRef<Props, ElementType: React$ElementType>(
       },
     });
   }
+
+  // 返回元素类型 // +++
   return elementType;
 }

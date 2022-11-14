@@ -911,7 +911,7 @@ function completeWork(
     case LazyComponent:
     case SimpleMemoComponent: // +++
     case FunctionComponent: // 函数式组件 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    case ForwardRef:
+    case ForwardRef: // +++ forwardRef对应的组件
     case Fragment: // fragment - 在这里直接就是bubbleProperties啦 ~
     case Mode:
     case Profiler:

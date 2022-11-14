@@ -417,7 +417,7 @@ export function renderWithHooks<Props, SecondArg>(
   workInProgress: Fiber,
   Component: (p: Props, arg: SecondArg) => any,
   props: Props,
-  secondArg: SecondArg,
+  secondArg: SecondArg, // 在updateForwarRef中的ref属性 - 实际上它就是forwardRef组件上所标记的ref属性 // +++
   nextRenderLanes: Lanes,
 ): any {
 
@@ -487,7 +487,10 @@ export function renderWithHooks<Props, SecondArg>(
 
 
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  
+  // 使用forwardRef的话那么ref属性作为函数式组件的第二个参数传入 // +++
   let children = Component(props, secondArg); // 直接调用组件函数 - 返回虚拟dom元素
+
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // 检查是否是渲染阶段的更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

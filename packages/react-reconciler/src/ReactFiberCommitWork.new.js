@@ -457,8 +457,8 @@ function commitBeforeMutationEffectsOnFiber(finishedWork: Fiber) {
       }
       break;
     }
-    case ForwardRef:
-    case SimpleMemoComponent: {
+    case ForwardRef: // +++
+    case SimpleMemoComponent: { // +++
       break;
     }
     // 类组件 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -543,6 +543,7 @@ function commitBeforeMutationEffectsOnFiber(finishedWork: Fiber) {
       // Nothing to do for these component types
       break;
     default: { // fragment也是直接略过啦 ~
+      // +++
       if ((flags & Snapshot) !== NoFlags) {
         throw new Error(
           'This unit of work tag should not have side-effects. This error is ' +
@@ -1086,8 +1087,8 @@ function commitLayoutEffectOnFiber(
   const flags = finishedWork.flags; // 其实就是wip的flags // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   switch (finishedWork.tag) {
     case FunctionComponent: // 函数式组件
-    case ForwardRef:
-    case SimpleMemoComponent: {
+    case ForwardRef: // +++
+    case SimpleMemoComponent: { // +++
       recursivelyTraverseLayoutEffects(
         finishedRoot,
         finishedWork,
@@ -1276,7 +1277,7 @@ function commitLayoutEffectOnFiber(
       }
       break;
     }
-    default: {
+    default: { // +++
       recursivelyTraverseLayoutEffects(
         finishedRoot,
         finishedWork,
@@ -2697,7 +2698,7 @@ function commitMutationEffectsOnFiber(
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   switch (finishedWork.tag) { // 依据标签tag
     case FunctionComponent: // 函数式组件 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    case ForwardRef:
+    case ForwardRef: // +++ // forwardRef // +++
     case MemoComponent: // +++
     case SimpleMemoComponent: { // +++
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);

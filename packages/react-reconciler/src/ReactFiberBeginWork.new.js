@@ -372,6 +372,7 @@ function forceUnmountCurrentAndReconcile(
   );
 }
 
+// 更新转发ref // +++
 function updateForwardRef(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -399,8 +400,18 @@ function updateForwardRef(
     }
   }
 
-  const render = Component.render;
-  const ref = workInProgress.ref;
+  const render = Component.render; // 直接就是对forwardRef函数中准备的元素类型中的render函数获取出来 // +++
+  // 其实它就是一个函数式组件 // +++
+
+  // 取出wip fiber的ref - 其实就是在forwardRef的执行结果上的组件上的ref属性
+  const ref = workInProgress.ref; // 取出来 // +++
+  /* 
+  Counter = forwardRef(Counter)
+
+  <Counter ref={xxx}> // 就是这个ref
+
+  // 这种形式的 // +++
+  */
 
   // The rest is a fork of updateFunctionComponent
   let nextChildren;
@@ -417,14 +428,23 @@ function updateForwardRef(
   if (__DEV__) {
     ReactCurrentOwner.current = workInProgress;
     setIsRendering(true);
+
+
+    // 直接renderWithHooks函数执行
     nextChildren = renderWithHooks(
       current,
-      workInProgress,
-      render,
+      workInProgress, // forwardRef组件对应的fiber
+      render, // 它就是一个函数式组件 // +++
       nextProps,
-      ref,
+      ref, // ref
       renderLanes,
     );
+    // 内部类似于render(nextProps, ref)
+    // 这种形式的 // +++
+
+    // 返回的结果就是函数式组件返回的reatc元素
+
+
     hasId = checkDidRenderIdHook();
     if (
       debugRenderPhaseSideEffectsForStrictMode &&
@@ -461,8 +481,13 @@ function updateForwardRef(
     markComponentRenderStopped();
   }
 
+  // +++
   if (current !== null && !didReceiveUpdate) {
+    
+    // +++
     bailoutHooks(current, workInProgress, renderLanes);
+
+    // +++ // 尽早的返回 // +++
     return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
   }
 
@@ -470,10 +495,17 @@ function updateForwardRef(
     pushMaterializedTreeId(workInProgress);
   }
 
+
+  // +++
   // React DevTools reads this flag.
   workInProgress.flags |= PerformedWork;
+
+  // +++
+  // 此时forwardRef组件对应的wip fiber的child就是react元素对应的wip fiber // +++
   reconcileChildren(current, workInProgress, nextChildren, renderLanes);
-  return workInProgress.child;
+
+  // +++
+  return workInProgress.child; // 返回 // +++
 }
 
 // 更新memo组件 // +++
@@ -4501,18 +4533,22 @@ function beginWork(
       return updateSuspenseComponent(current, workInProgress, renderLanes);
     case HostPortal:
       return updatePortalComponent(current, workInProgress, renderLanes);
+
+    // 转发ref // +++
     case ForwardRef: {
-      const type = workInProgress.type;
-      const unresolvedProps = workInProgress.pendingProps;
+      const type = workInProgress.type; // forwardRef函数里面准备的元素类型 // +++
+      const unresolvedProps = workInProgress.pendingProps; // 组件上传入的属性对象 // +++
       const resolvedProps =
         workInProgress.elementType === type
           ? unresolvedProps
           : resolveDefaultProps(type, unresolvedProps);
-      return updateForwardRef(
+
+      // 更新转发ref
+      return updateForwardRef( // +++
         current,
         workInProgress,
-        type,
-        resolvedProps,
+        type, // 
+        resolvedProps, // 
         renderLanes,
       );
     }
