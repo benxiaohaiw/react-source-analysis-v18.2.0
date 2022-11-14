@@ -909,14 +909,14 @@ function completeWork(
   switch (workInProgress.tag) {
     case IndeterminateComponent:
     case LazyComponent:
-    case SimpleMemoComponent:
+    case SimpleMemoComponent: // +++
     case FunctionComponent: // 函数式组件 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ForwardRef:
     case Fragment: // fragment - 在这里直接就是bubbleProperties啦 ~
     case Mode:
     case Profiler:
     case ContextConsumer: // 上下文消费者 // +++
-    case MemoComponent:
+    case MemoComponent: // +++
       
       // 仅仅在这里进行冒泡属性
       bubbleProperties(workInProgress); // 冒泡属性 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -476,6 +476,7 @@ function updateForwardRef(
   return workInProgress.child;
 }
 
+// 更新memo组件 // +++
 function updateMemoComponent(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -483,34 +484,67 @@ function updateMemoComponent(
   nextProps: any,
   renderLanes: Lanes,
 ): null | Fiber {
+  // 初次挂载
   if (current === null) {
-    const type = Component.type;
+    const type = Component.type; // 从memo函数里面准备的elementType对象中去取type也就是使用memo函数包裹的组件
     if (
-      isSimpleFunctionComponent(type) &&
-      Component.compare === null &&
+      isSimpleFunctionComponent(type) && // 组件是否是简单函数式组件
+      /* 
+      ./ReactFiber.new.js
+
+      // 是否为简单函数式组件 // +++
+export function isSimpleFunctionComponent(type: any): boolean {
+  return (
+    typeof type === 'function' &&
+    !shouldConstruct(type) &&
+    type.defaultProps === undefined
+  );
+}
+      */
+
+      Component.compare === null && // memo函数也没有传递compare函数
       // SimpleMemoComponent codepath doesn't resolve outer props either.
-      Component.defaultProps === undefined
+      Component.defaultProps === undefined // true
     ) {
-      let resolvedType = type;
+      let resolvedType = type; // 被包裹的组件
       if (__DEV__) {
         resolvedType = resolveFunctionForHotReloading(type);
       }
       // If this is a plain function component without default props,
       // and with only the default shallow comparison, we upgrade it
       // to a SimpleMemoComponent to allow fast path updates.
-      workInProgress.tag = SimpleMemoComponent;
-      workInProgress.type = resolvedType;
+
+      // ++++++
+      // 一定注意这个操作 // +++是很重要的 // +++
+      // 这个就在beginWork中的case SimpleMemoComponent:逻辑啦 ~ // +++
+      workInProgress.tag = SimpleMemoComponent; // 修改memo组件对应的fiber的tag为SimpleMemoComponent // +++ 重点（tag已经从MemoComponent改变为[SimpleMemoComponent]） // ++++++
+      workInProgress.type = resolvedType; // 修改memo组件对应的fiber的type为【被包裹的组件】 // +++
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
       if (__DEV__) {
         validateFunctionComponentInDev(workInProgress, type);
       }
+
+
+      // +++
+      // 更新简单memo组件 // +++
+      // 其实就是memo组件对应的fiber顶替了本身原来应该是被包裹组件的fiber
+      // 这里没有了被包裹组件对应的fiber了 - 而只有memo组件对应的fiber了 - 比如包裹的函数式组件返回的元素形成的child fiber是直接放在了memo组件对应的wip fiber的child上 // +++
       return updateSimpleMemoComponent(
         current,
         workInProgress,
-        resolvedType,
+        resolvedType, // 被包裹的组件 // +++
         nextProps,
         renderLanes,
       );
     }
+
+    // 假如说memo函数传入了一个比较函数 // +++
+    // 那么会运行到这里的 // +++
+    // 注意此时的memo组件对应的wip fiber的tag依旧还是MemoComponent - 没有被修改 // +++
+
+
     if (__DEV__) {
       const innerPropTypes = type.propTypes;
       if (innerPropTypes) {
@@ -524,19 +558,36 @@ function updateMemoComponent(
         );
       }
     }
+
+    // 创建了一个关于函数式组件对应的wip fiber - 注意这个fiber的tag是为IndeterminateComponent // 因为说了函数式组件的话这里创建出来的tag为IndeterminateComponent
+    // 而如果是类组件的话那么这里的tag就为ClassComponent啦 ~
     const child = createFiberFromTypeAndProps(
-      Component.type,
+      Component.type, // 被包裹的函数式组件
       null,
-      nextProps,
+      nextProps, // pendingProps就是memo组件的props // +++ // 重点 // +++
       workInProgress,
       workInProgress.mode,
       renderLanes,
     );
     child.ref = workInProgress.ref;
     child.return = workInProgress;
+
+    // 把memo组件对应的wip fiber的child存储这个函数式组件对应的wip fiber // +++
     workInProgress.child = child;
+
+    // 返回这个函数式组件对应的fiber - 但他的tag为IndeterminateComponent
     return child;
   }
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // 所以说写不写比较函数影响最大的就是memo组件对应的fiber的child是谁的问题？
+  // 写了则child就是函数式组件对应的fiber // +++
+  // 不写则是函数式组件返回的reatc元素对应的fiber // +++
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  
+  // 这里是MemoComponent的更新逻辑 - 不是SimpleMemoComponent的更新的逻辑（它的tag在上面被改了之后再去更新时就不会走到这里了而是beginWork -> case SimpleMemoComponent: updateSimpleMemoComponent）
+
   if (__DEV__) {
     const type = Component.type;
     const innerPropTypes = type.propTypes;
@@ -551,31 +602,60 @@ function updateMemoComponent(
       );
     }
   }
+
+
   const currentChild = ((current.child: any): Fiber); // This is always exactly one child
+  // 那么这个就是函数式组件对应的current fiber啦 - 它的tag已然变为了FunctionComponent啦
+
+  // 检查是否有调度更新或上下文 // +++
   const hasScheduledUpdateOrContext = checkScheduledUpdateOrContext(
     current,
     renderLanes,
   );
+
+  // 没有
   if (!hasScheduledUpdateOrContext) {
     // This will be the props with resolved defaultProps,
     // unlike current.memoizedProps which will be the unresolved ones.
-    const prevProps = currentChild.memoizedProps;
+    const prevProps = currentChild.memoizedProps; // 这个其实就是函数式组件对应的current fiber的memoizedProps
+    // 也就是由上面的逻辑可知其实就是memo组件对应的上一次的属性
+    
+    // 默认是浅比较 // +++
     // Default to shallow comparison
-    let compare = Component.compare;
-    compare = compare !== null ? compare : shallowEqual;
+    let compare = Component.compare; // 
+
+    // shared/shallowEqual
+    compare = compare !== null ? compare : shallowEqual; // 是否有compare函数，没有则采取默认的shallowEqual函数（浅比较） // +++
+    // 有的话则使用用户写的比较函数 - 没有则使用默认的浅比较函数 // +++
+
+    // 比较函数没有变化则提前返回 // +++
     if (compare(prevProps, nextProps) && current.ref === workInProgress.ref) {
+
+      // 其实就是返回wip.child -> current.child -> .alternate -> wip.child -> 返回
       return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
     }
   }
+
+
+  // 有的话
+
   // React DevTools reads this flag.
   workInProgress.flags |= PerformedWork;
-  const newChild = createWorkInProgress(currentChild, nextProps);
+
+  // +++
+  // 新的属性
+  const newChild = createWorkInProgress(currentChild, nextProps); // +++
+  
+  // +++
   newChild.ref = workInProgress.ref;
   newChild.return = workInProgress;
-  workInProgress.child = newChild;
-  return newChild;
+  
+  workInProgress.child = newChild; // +++
+  
+  return newChild; // +++
 }
 
+// 更新简单memo组件 // +++
 function updateSimpleMemoComponent(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -618,15 +698,21 @@ function updateSimpleMemoComponent(
       }
     }
   }
+
+  // 更新简单memo组件 // +++
   if (current !== null) {
-    const prevProps = current.memoizedProps;
+    const prevProps = current.memoizedProps; // 之前传递给memo组件的属性 // +++
     if (
-      shallowEqual(prevProps, nextProps) &&
+      
+      // shared/shallowEqual
+      shallowEqual(prevProps, nextProps) && // 直接使用默认浅比较函数进行比较memo组件的旧新属性是否一致 // +++
+      // 只比较对象中的一层 // ++++++
+      
       current.ref === workInProgress.ref &&
       // Prevent bailout if the implementation changed due to hot reload.
       (__DEV__ ? workInProgress.type === current.type : true)
     ) {
-      didReceiveUpdate = false;
+      didReceiveUpdate = false; // 标记false // +++
 
       // The props are shallowly equal. Reuse the previous props object, like we
       // would during a normal fiber bailout.
@@ -643,7 +729,7 @@ function updateSimpleMemoComponent(
       // like forwardRef (MemoComponent). But this is an implementation detail.
       // Wrapping a component in forwardRef (or React.lazy, etc) shouldn't
       // affect whether the props object is reused during a bailout.
-      workInProgress.pendingProps = nextProps = prevProps;
+      workInProgress.pendingProps = nextProps = prevProps; // +++
 
       if (!checkScheduledUpdateOrContext(current, renderLanes)) {
         // The pending lanes were cleared at the beginning of beginWork. We're
@@ -660,11 +746,17 @@ function updateSimpleMemoComponent(
         // TODO: Move the reset at in beginWork out of the common path so that
         // this is no longer necessary.
         workInProgress.lanes = current.lanes;
+        
+        // +++
+        // 提前返回
+        // 其实就是返回wip.child -> current.child -> .alternate -> wip.child -> 返回
         return bailoutOnAlreadyFinishedWork(
           current,
           workInProgress,
           renderLanes,
         );
+
+
       } else if ((current.flags & ForceUpdateForLegacySuspense) !== NoFlags) {
         // This is a special case that only exists for legacy mode.
         // See https://github.com/facebook/react/pull/19216.
@@ -672,11 +764,14 @@ function updateSimpleMemoComponent(
       }
     }
   }
+
+  // +++
+  // 更新函数式组件 // +++
   return updateFunctionComponent(
     current,
     workInProgress,
-    Component,
-    nextProps,
+    Component, // 被包裹的组件 // +++
+    nextProps, // 这个是用来Component(nextProps)的 // +++
     renderLanes,
   );
 }
@@ -1097,7 +1192,7 @@ function markRef(current: Fiber | null, workInProgress: Fiber) {
 }
 
 // 更新函数式组件 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-function updateFunctionComponent(
+function updateFunctionComponent( // 更新函数式组件
   current,
   workInProgress,
   Component,
@@ -1144,8 +1239,8 @@ function updateFunctionComponent(
     nextChildren = renderWithHooks( // 还是执行renderWithHooks函数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       current,
       workInProgress,
-      Component,
-      nextProps,
+      Component, // 组件 // +++
+      nextProps, // +++
       context,
       renderLanes,
       // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1192,6 +1287,13 @@ function updateFunctionComponent(
 
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (current !== null && !didReceiveUpdate) { // 这个如果为true则【直接说明了state是没有变化的】，那么直接不要进行下面的reconcileChildren操作了
+    /* 
+    // 标记wip已接受更新 +++
+export function markWorkInProgressReceivedUpdate() {
+  didReceiveUpdate = true; // +++
+}
+    */
+
     // 而是直接抄近道，照着下面的逻辑进行执行运行 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     bailoutHooks(current, workInProgress, renderLanes);
     return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes); // +++++++++++++++++++++++
@@ -1306,6 +1408,9 @@ function updateClassComponent(
     mountClassInstance(workInProgress, Component, nextProps, renderLanes); // 挂载类实例 // ++++++++++++++++++++++++++++++++++++++++++++
     // mountClassInstance -> initializeUpdateQueue // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+    // +++
+    // mount时肯定是需要进行更新的 // +++
+
     shouldUpdate = true; // 标记应该更新 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   } else if (current === null) {
     // In a resume, we'll already have an instance we can reuse.
@@ -1315,7 +1420,7 @@ function updateClassComponent(
       nextProps,
       renderLanes,
     );
-  } else {
+  } else { // 更新 // +++
     // 更新类实例 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // ./ReactFiberClassComponent.new.js
     shouldUpdate = updateClassInstance( // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4349,7 +4454,7 @@ function beginWork(
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // 类组件 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    case ClassComponent: {
+    case ClassComponent: { // +++
       const Component = workInProgress.type;
       const unresolvedProps = workInProgress.pendingProps;
       const resolvedProps =
@@ -4428,8 +4533,10 @@ function beginWork(
     case ContextConsumer: // <XxxContext.Consumer>
       return updateContextConsumer(current, workInProgress, renderLanes); // 更新上下文消费者 +++
     
-    case MemoComponent: {
-      const type = workInProgress.type;
+    // memo // +++
+    case MemoComponent: { // +++
+      const type = workInProgress.type; // memo函数里面准备的elementType对象 // +++
+
       const unresolvedProps = workInProgress.pendingProps;
       // Resolve outer props first, then resolve inner props.
       let resolvedProps = resolveDefaultProps(type, unresolvedProps);
@@ -4447,15 +4554,22 @@ function beginWork(
         }
       }
       resolvedProps = resolveDefaultProps(type.type, resolvedProps);
+
+      // 更新memo组件
       return updateMemoComponent(
         current,
         workInProgress,
-        type,
+        type, // memo函数里面准备的elementType对象
         resolvedProps,
         renderLanes,
       );
     }
-    case SimpleMemoComponent: {
+
+    // +++重点 // +++
+    // 简单memo组件 - 这里是更新的时候memo组件会走到这里的 // +++（因为在发现是简单memo组件时更改了memo组件对应的fiber的tag为简单memo组件啦 ~） // +++
+    case SimpleMemoComponent: { // +++
+
+      /// 更新简单memo组件 // +++
       return updateSimpleMemoComponent(
         current,
         workInProgress,

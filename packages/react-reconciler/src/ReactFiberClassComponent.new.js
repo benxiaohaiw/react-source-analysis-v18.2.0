@@ -366,8 +366,16 @@ function checkShouldComponentUpdate( // 检查是否应该组件更新 // ++++++
     return shouldUpdate;
   }
 
+  // 取出原型上面的isPureReactComponent标记 - 是说明extends PureComponent // +++
   if (ctor.prototype && ctor.prototype.isPureReactComponent) {
+
+    // memo函数和PureComponent区别
+    // PureComponent多了一个state比较 // +++
+
+    // 返回的是 !属性浅比较 || !状态state浅比较 // +++
+    /// 它的true or false将影响到updateClassInstance -> updateClassComponent -> finishClassComponent -> !shouldUpdate（不应该进行更新） -> bailoutOnAlreadyFinishedWork（尽早的返回）
     return (
+      // shared/shallowEqual // +++
       !shallowEqual(oldProps, newProps) || !shallowEqual(oldState, newState)
     );
   }
@@ -1320,6 +1328,8 @@ function updateClassInstance(
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   const shouldUpdate =
     checkHasForceUpdateAfterProcessing() ||
+
+    // +++
     checkShouldComponentUpdate( // 【执行】实例的shouldComponentUpdate生命周期函数 // ++++++++++++++++++++++++++++++++++++++++++++++++
       workInProgress,
       ctor,

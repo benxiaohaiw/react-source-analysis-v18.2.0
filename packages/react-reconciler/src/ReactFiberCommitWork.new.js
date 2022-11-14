@@ -2698,8 +2698,8 @@ function commitMutationEffectsOnFiber(
   switch (finishedWork.tag) { // 依据标签tag
     case FunctionComponent: // 函数式组件 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ForwardRef:
-    case MemoComponent:
-    case SimpleMemoComponent: {
+    case MemoComponent: // +++
+    case SimpleMemoComponent: { // +++
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
 
       // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -40,7 +40,10 @@ export const REACT_SUSPENSE_TYPE: symbol = Symbol.for('react.suspense');
 export const REACT_SUSPENSE_LIST_TYPE: symbol = Symbol.for(
   'react.suspense_list',
 );
-export const REACT_MEMO_TYPE: symbol = Symbol.for('react.memo');
+
+// +++
+export const REACT_MEMO_TYPE: symbol = Symbol.for('react.memo'); // +++
+
 export const REACT_LAZY_TYPE: symbol = Symbol.for('react.lazy');
 export const REACT_SCOPE_TYPE: symbol = Symbol.for('react.scope');
 export const REACT_DEBUG_TRACING_MODE_TYPE: symbol = Symbol.for(

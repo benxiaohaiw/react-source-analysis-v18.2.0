@@ -234,6 +234,7 @@ function shouldConstruct(Component: Function) {
   return !!(prototype && prototype.isReactComponent);
 }
 
+// 是否为简单函数式组件 // +++
 export function isSimpleFunctionComponent(type: any): boolean {
   return (
     typeof type === 'function' &&
@@ -521,10 +522,10 @@ export function createFiberFromTypeAndProps( // +++
   return !!(prototype && prototype.isReactComponent);
 }
     */
-    // 仅仅确定类式组件
+    // 仅仅确定类式组件 // +++
     if (shouldConstruct(type)) { // type为类组件 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       fiberTag = ClassComponent; // fiber的tag替换为ClassComponent // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+      // +++
 
       if (__DEV__) {
         resolvedType = resolveClassForHotReloading(resolvedType);
@@ -621,8 +622,8 @@ export function createFiberFromTypeAndProps( // +++
                 resolvedType = resolveForwardRefForHotReloading(resolvedType);
               }
               break getTag;
-            case REACT_MEMO_TYPE:
-              fiberTag = MemoComponent;
+            case REACT_MEMO_TYPE: // memo +++
+              fiberTag = MemoComponent; // +++
               break getTag;
             case REACT_LAZY_TYPE:
               fiberTag = LazyComponent;

@@ -9,6 +9,7 @@ import {REACT_MEMO_TYPE} from 'shared/ReactSymbols';
 
 import isValidElementType from 'shared/isValidElementType';
 
+// memo函数 // +++
 export function memo<Props>(
   type: React$ElementType,
   compare?: (oldProps: Props, newProps: Props) => boolean,
@@ -22,10 +23,11 @@ export function memo<Props>(
       );
     }
   }
+  // 准备
   const elementType = {
     $$typeof: REACT_MEMO_TYPE,
-    type,
-    compare: compare === undefined ? null : compare,
+    type, // 组件
+    compare: compare === undefined ? null : compare, // 比较函数
   };
   if (__DEV__) {
     let ownName;
@@ -51,5 +53,6 @@ export function memo<Props>(
       },
     });
   }
+  // 返回
   return elementType;
 }

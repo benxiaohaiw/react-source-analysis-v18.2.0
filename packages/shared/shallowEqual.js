@@ -15,11 +15,14 @@ import hasOwnProperty from './hasOwnProperty';
  * when any key has values which are not strictly equal between the arguments.
  * Returns true when the values of all keys are strictly equal.
  */
-function shallowEqual(objA: mixed, objB: mixed): boolean {
+function shallowEqual(objA: mixed, objB: mixed): boolean { // 浅比较 - 只比较对象中的一层 // +++
+
+  // 先使用Object.is进行比较
   if (is(objA, objB)) {
     return true;
   }
 
+  // +++
   if (
     typeof objA !== 'object' ||
     objA === null ||
@@ -29,19 +32,22 @@ function shallowEqual(objA: mixed, objB: mixed): boolean {
     return false;
   }
 
+  // +++
   const keysA = Object.keys(objA);
   const keysB = Object.keys(objB);
 
+  // +++
   if (keysA.length !== keysB.length) {
     return false;
   }
 
+  // +++
   // Test for A's keys different from B.
   for (let i = 0; i < keysA.length; i++) {
     const currentKey = keysA[i];
     if (
       !hasOwnProperty.call(objB, currentKey) ||
-      !is(objA[currentKey], objB[currentKey])
+      !is(objA[currentKey], objB[currentKey]) // 比较值 // +++ // 只是一层 - 所以是浅比较 // +++
     ) {
       return false;
     }

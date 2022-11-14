@@ -151,6 +151,10 @@ const pureComponentPrototype = (PureComponent.prototype = new ComponentDummy());
 pureComponentPrototype.constructor = PureComponent;
 // Avoid an extra prototype jump for these methods.
 assign(pureComponentPrototype, Component.prototype);
+
+// +++
+// extends PureComponent实际上在其原型上多了这个isPureReactComponent标记的 // +++
 pureComponentPrototype.isPureReactComponent = true; // 标记isPureReactComponent // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 export {Component, PureComponent};
