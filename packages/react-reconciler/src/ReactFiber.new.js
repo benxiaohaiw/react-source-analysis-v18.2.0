@@ -887,19 +887,30 @@ export function createFiberFromDehydratedFragment(
   return fiber;
 }
 
+
+// 从portal中创建对应的fiber // +++
 export function createFiberFromPortal(
   portal: ReactPortal,
   mode: TypeOfMode,
   lanes: Lanes,
 ): Fiber {
+
+  // 把children作为pendingProps
   const pendingProps = portal.children !== null ? portal.children : [];
+
+  // 创建fiber
   const fiber = createFiber(HostPortal, pendingProps, portal.key, mode);
   fiber.lanes = lanes;
+
+
+  // 准备该fiber的stateNode对象
   fiber.stateNode = {
-    containerInfo: portal.containerInfo,
+    containerInfo: portal.containerInfo, // 真实dom容器节点 // +++
     pendingChildren: null, // Used by persistent updates
-    implementation: portal.implementation,
+    implementation: portal.implementation, // null - 默认值
   };
+
+  // 返回这个fiber // +++
   return fiber;
 }
 

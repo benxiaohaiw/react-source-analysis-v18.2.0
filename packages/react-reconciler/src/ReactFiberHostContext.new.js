@@ -48,10 +48,11 @@ function getRootHostContainer(): Container {
   return rootInstance;
 }
 
+// +++
 function pushHostContainer(fiber: Fiber, nextRootInstance: Container) {
   // Push current root instance onto the stack;
   // This allows us to reset root when portals are popped.
-  push(rootInstanceStackCursor, nextRootInstance, fiber);
+  push(rootInstanceStackCursor, nextRootInstance, fiber); // ./ReactFiberStack.new.js // +++
   // Track the context and the Fiber that provided it.
   // This enables us to pop only Fibers that provide unique contexts.
   push(contextFiberStackCursor, fiber, fiber);
@@ -62,7 +63,9 @@ function pushHostContainer(fiber: Fiber, nextRootInstance: Container) {
   // whether getRootHostContext() throws somewhere in renderer code or not.
   // So we push an empty value first. This lets us safely unwind on errors.
   push(contextStackCursor, NO_CONTEXT, fiber);
-  const nextRootContext = getRootHostContext(nextRootInstance);
+  
+  // 这个就是获取真实dom的命名空间的 // +++
+  const nextRootContext = getRootHostContext(nextRootInstance); // packages/react-dom-bindings/src/client/ReactDOMHostConfig.js // +++
   // Now that we know this function doesn't throw, replace it.
   pop(contextStackCursor, fiber);
   push(contextStackCursor, nextRootContext, fiber);

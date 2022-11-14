@@ -538,8 +538,9 @@ function commitBeforeMutationEffectsOnFiber(finishedWork: Fiber) {
     case HostResource:
     case HostSingleton:
     case HostText:
-    case HostPortal:
+    case HostPortal: // createPortal api // +++
     case IncompleteClassComponent:
+      // 对这些组件类型无事可做 // +++
       // Nothing to do for these component types
       break;
     default: { // fragment也是直接略过啦 ~
@@ -1835,10 +1836,11 @@ function emptyPortalContainer(current: Fiber) {
   replaceContainerChildren(containerInfo, emptyChildSet);
 }
 
+// +++
 function getHostParentFiber(fiber: Fiber): Fiber {
   let parent = fiber.return;
   while (parent !== null) {
-    if (isHostParent(parent)) {
+    if (isHostParent(parent)) { // +++
       return parent;
     }
     parent = parent.return;
@@ -1850,15 +1852,16 @@ function getHostParentFiber(fiber: Fiber): Fiber {
   );
 }
 
+// +++
 function isHostParent(fiber: Fiber): boolean {
   return (
-    fiber.tag === HostComponent ||
-    fiber.tag === HostRoot ||
+    fiber.tag === HostComponent || // +++
+    fiber.tag === HostRoot || // +++
     (enableFloat && supportsResources ? fiber.tag === HostResource : false) ||
     (enableHostSingletons && supportsSingletons
       ? fiber.tag === HostSingleton
       : false) ||
-    fiber.tag === HostPortal
+    fiber.tag === HostPortal // +++
   );
 }
 
@@ -1929,7 +1932,10 @@ function commitPlacement(finishedWork: Fiber): void {
   // Recursively insert all host nodes into the parent.
   const parentFiber = getHostParentFiber(finishedWork); // App wip fiber
   // FiberNode
+  // 如果finishedWork是HostComponent的那么这个函数返回的就是HostPortal对应的wip fiber // ++++++
+  // 注意它是parentFiber
 
+  // 获取parentFiber的tag
   switch (parentFiber.tag) {
     case HostSingleton: {
       if (enableHostSingletons && supportsSingletons) {
@@ -1958,11 +1964,14 @@ function commitPlacement(finishedWork: Fiber): void {
       break;
     }
     case HostRoot: // +++
-    case HostPortal: {
+    case HostPortal: { // +++ createPortal api // +++
       // #root
+      // HostPortal wip fiber的stateNode.containerInfo表示要挂载的容器 // +++
       const parent: Container = parentFiber.stateNode.containerInfo; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // null
       const before = getHostSibling(finishedWork);
+
+      // 插入 // +++
       insertOrAppendPlacementNodeIntoContainer(finishedWork, before, parent); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       break;
     }
@@ -1975,6 +1984,7 @@ function commitPlacement(finishedWork: Fiber): void {
   }
 }
 
+// +++
 function insertOrAppendPlacementNodeIntoContainer( // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   node: Fiber,
   before: ?Instance,
@@ -1982,19 +1992,24 @@ function insertOrAppendPlacementNodeIntoContainer( // ++++++++++++++++++++++++++
 ): void {
   const {tag} = node; // App wip fiber -> fragment fiber -> button fiber -> p fiber
   const isHost = tag === HostComponent || tag === HostText; // +++++++++++++++++++++++++++++ button fiber is host
-  if (isHost) {
-    const stateNode = node.stateNode; // button dom
+  if (isHost) { // +++
+    const stateNode = node.stateNode; // button dom // +++
     // parent: #root
 
     if (before) { // null
       insertInContainerBefore(parent, stateNode, before); // +++++++++++++++++++++++++++++++++++++++++++++++
     } else {
+
+      // +++
       appendChildToContainer(parent, stateNode); // +++++++++++++++++++++++++++++++++++ // #root, button dom -> appendChild
     }
   } else if (
-    tag === HostPortal ||
+    tag === HostPortal || // true is HostPortal
     (enableHostSingletons && supportsSingletons ? tag === HostSingleton : false)
   ) {
+
+    // 什么都不做 // +++
+
     // If the insertion itself is a portal, then we don't want to traverse
     // down its children. Instead, we'll get insertions from each child in
     // the portal directly.
@@ -2843,7 +2858,9 @@ function commitMutationEffectsOnFiber(
     // eslint-disable-next-line-no-fallthrough
     case HostComponent: {
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
-      commitReconciliationEffects(finishedWork);
+
+      commitReconciliationEffects(finishedWork); // +++
+      // +++
 
       if (flags & Ref) { // Ref标记
         if (current !== null) {
@@ -2996,9 +3013,19 @@ function commitMutationEffectsOnFiber(
       }
       return; // 返回return
     }
+
+    // createPortal api // +++
     case HostPortal: {
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
-      commitReconciliationEffects(finishedWork);
+      
+      // 在packages/react-reconciler/src/ReactChildFiber.new.js里面的reconcileChildFibers函数中有解释说明的
+      // 在packages/react-reconciler/src/ReactFiberBeginWork.new.js里面的updatePortalComponent函数中也有说明的 // +++
+      commitReconciliationEffects(finishedWork); // +++
+      // +++
+      // 这个里面我们最终发现对于HostPortal来讲什么事情都不做的 // +++
+
+      // 真正在挂载的地方是HostComponent，原因是updatePortalComponent里面使用的reconcileChildFibers导致的 // +++
+      // 所以我们看向HostComponent // +++
 
       if (flags & Update) {
         if (supportsPersistence) {

@@ -111,6 +111,7 @@ setBatchingImplementation(
   flushSyncWithoutWarningIfAlreadyRendering,
 );
 
+// createPortal api // +++
 function createPortal(
   children: ReactNodeList,
   container: Element | DocumentFragment,
@@ -122,7 +123,9 @@ function createPortal(
 
   // TODO: pass ReactDOM portal implementation as third argument
   // $FlowFixMe The Flow type is opaque but there's no way to actually create it.
-  return createPortalImpl(children, container, null, key);
+  return createPortalImpl(children, container, null, key); // 创建portal实现 // +++
+  // react元素 真实dom节点容器 // +++
+  // packages/react-reconciler/src/ReactPortal.js
 }
 
 function renderSubtreeIntoContainer(

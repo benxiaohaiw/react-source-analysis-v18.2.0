@@ -1690,6 +1690,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
     }
   }
 
+  // +++
   function reconcileSinglePortal(
     returnFiber: Fiber,
     currentFirstChild: Fiber | null,
@@ -1721,8 +1722,11 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
       child = child.sibling;
     }
 
+    // 从portal创建对应的fiber // +++
     const created = createFiberFromPortal(portal, returnFiber.mode, lanes);
     created.return = returnFiber;
+
+    // 返回这个fiber // +++
     return created;
   }
 
@@ -1771,8 +1775,29 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
               lanes,
             ),
           );
+        /* 
+        createPortal api返回的对象
+          return {
+            // This tag allow us to uniquely identify this as a React Portal
+            $$typeof: REACT_PORTAL_TYPE,
+            key: key == null ? null : '' + key,
+            children,
+            containerInfo,
+            implementation,
+          };
+        */
         case REACT_PORTAL_TYPE:
-          return placeSingleChild(
+
+          // 这个HostPortal对应的fiber的tag是否加上Placement将根据它的父级到底是reconcileChildFibers还是mountChildFibers
+          // 那么不管啊它的flags是否加上这个Placement标记 - 那么在commitMutationEffects中的case HostPortal: commitReconciliationEffects
+          // 这个里面我们最终跟到里面看了下发现什么事情都是不做的
+
+          // 那么如何挂载呢？
+          // 最关键的地方还是在于beginWork中的updatePortalComponent中的workInProgress.child = reconcileChildFibers(...)
+          // 这个直接影响它的children的flags是否带有Placement标记所以它才是最关键的因素 // ！！！
+          return placeSingleChild( // +++
+
+            // +++
             reconcileSinglePortal(
               returnFiber,
               currentFirstChild,

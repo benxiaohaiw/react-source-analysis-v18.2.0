@@ -165,6 +165,8 @@ let selectionInformation: null | SelectionInformation = null;
 
 export * from 'react-reconciler/src/ReactFiberHostConfigWithNoPersistence';
 
+// +++
+// 获取真实dom节点的命名空间的 // +++
 export function getRootHostContext(
   rootContainerInstance: Container,
 ): HostContext {
@@ -298,11 +300,12 @@ export function createInstance(
   return domElement;
 }
 
+// +++
 export function appendInitialChild(
   parentInstance: Instance,
   child: Instance | TextInstance,
 ): void {
-  parentInstance.appendChild(child);
+  parentInstance.appendChild(child); // +++
 }
 
 export function finalizeInitialChildren(
@@ -412,7 +415,9 @@ export function getInstanceFromNode(node: HTMLElement): null | Object {
   return getClosestInstanceFromNode(node) || null;
 }
 
+// 准备portal挂载
 export function preparePortalMount(portalInstance: Instance): void {
+  // 实际上就是在这个dom实例进行监听所有支持的事件 // +++
   listenToAllSupportedEvents(portalInstance);
 }
 

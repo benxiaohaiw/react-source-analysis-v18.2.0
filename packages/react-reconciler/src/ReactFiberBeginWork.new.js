@@ -3677,28 +3677,54 @@ function updateSuspenseListComponent(
   return workInProgress.child;
 }
 
+// 更新portal组件
 function updatePortalComponent(
   current: Fiber | null,
   workInProgress: Fiber,
   renderLanes: Lanes,
 ) {
-  pushHostContainer(workInProgress, workInProgress.stateNode.containerInfo);
+
+  // ./ReactFiberHostContext.new.js
+  // 推入 // +++
+  pushHostContainer(workInProgress, workInProgress.stateNode.containerInfo); // 真实dom节点容器 // +++
+
+  // children // +++
   const nextChildren = workInProgress.pendingProps;
+
+  // 初次挂载
   if (current === null) {
+    
     // Portals are special because we don't append the children during mount
     // but at commit. Therefore we need to track insertions which the normal
     // flow doesn't do during mount. This doesn't happen at the root because
     // the root always starts with a "current" with a null child.
     // TODO: Consider unifying this with how the root works.
-    workInProgress.child = reconcileChildFibers(
-      workInProgress,
-      null,
-      nextChildren,
+    // +++
+    workInProgress.child = reconcileChildFibers( // +++ 这个api使用的直接是packages/react-reconciler/src/ReactChildFiber.new.js里面的reconcileChildFibers - 传入的参数是为true // 注意 +++
+      workInProgress, // returnFiber
+      null, // currentFirstChild
+      nextChildren, // children
       renderLanes,
-    );
+    ); // +++
+    // 是这里影响的 // +++
+
+    // 因为在这里使用的api是ReactChildFiber.new.js文件里面的reconcileChildFibers - 那么他传入的参数是为true的
+    // 那么所以在placeSingleChild这个函数里面会给children这个fiber的flags加上Placement // +++ // 要注意！！！
+
+    // 那么这个flags将直接影响在commitmutationEffects中case HostComponent:里面的commitReconciliationEffects
+    // 那么就可以正常的进行挂载啦 ~ // +++
+
   } else {
+
+    // 更新 // +++
+    // +++
     reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+    // -> reconcileChildFibers
+
   }
+
+
+  // +++
   return workInProgress.child;
 }
 
@@ -4531,8 +4557,12 @@ function beginWork(
 
     case SuspenseComponent:
       return updateSuspenseComponent(current, workInProgress, renderLanes);
+
+
+    // 主机portal // +++
     case HostPortal:
-      return updatePortalComponent(current, workInProgress, renderLanes);
+      // 更新portal组件 // +++
+      return updatePortalComponent(current, workInProgress, renderLanes); // +++
 
     // 转发ref // +++
     case ForwardRef: {

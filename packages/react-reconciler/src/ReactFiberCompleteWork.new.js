@@ -1455,12 +1455,28 @@ function markUpdate(workInProgress: Fiber) {
       }
       return null;
     }
+
+    // createPortal // +++
     case HostPortal:
-      popHostContainer(workInProgress);
-      updateHostContainer(current, workInProgress);
+    
+      // +++
+      popHostContainer(workInProgress); // 弹出
+
+      // 更新主机容器 // +++
+      updateHostContainer(current, workInProgress); // noop // +++
+
+      // 挂载
       if (current === null) {
-        preparePortalMount(workInProgress.stateNode.containerInfo);
+
+        // 准备portal挂载 // +++
+        preparePortalMount(workInProgress.stateNode.containerInfo); // 真实dom节点容器 // +++
+        /* 
+        // 实际上就是在这个dom实例进行监听所有支持的事件 // +++
+        listenToAllSupportedEvents
+        */
       }
+
+      // 依然是冒泡属性 // +++
       bubbleProperties(workInProgress);
       return null;
     case ContextProvider: // 上下文提供者 // +++
