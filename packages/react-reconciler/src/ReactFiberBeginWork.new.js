@@ -1037,14 +1037,18 @@ function updateTracingMarkerComponent(
   return workInProgress.child;
 }
 
+// 更新fragment // +++
 function updateFragment(
   current: Fiber | null,
   workInProgress: Fiber,
   renderLanes: Lanes,
 ) {
-  const nextChildren = workInProgress.pendingProps;
-  reconcileChildren(current, workInProgress, nextChildren, renderLanes);
-  return workInProgress.child;
+  
+  const nextChildren = workInProgress.pendingProps; // 直接取出wip的pendingProps，其实它就是fragment的children // +++
+
+  reconcileChildren(current, workInProgress, nextChildren, renderLanes); // 这里直接就进行了reconcileChildren
+
+  return workInProgress.child; // 直接返回wip的child // +++
 }
 
 function updateMode(
@@ -4407,7 +4411,9 @@ function beginWork(
         renderLanes,
       );
     }
-    case Fragment:
+    // fragmnet
+    case Fragment: // +++
+      // 更新fragment // +++
       return updateFragment(current, workInProgress, renderLanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case Mode:
       return updateMode(current, workInProgress, renderLanes);

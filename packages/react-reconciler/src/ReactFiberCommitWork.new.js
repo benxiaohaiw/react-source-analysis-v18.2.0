@@ -542,7 +542,7 @@ function commitBeforeMutationEffectsOnFiber(finishedWork: Fiber) {
     case IncompleteClassComponent:
       // Nothing to do for these component types
       break;
-    default: {
+    default: { // fragment也是直接略过啦 ~
       if ((flags & Snapshot) !== NoFlags) {
         throw new Error(
           'This unit of work tag should not have side-effects. This error is ' +
@@ -1926,7 +1926,8 @@ function commitPlacement(finishedWork: Fiber): void {
     }
   }
   // Recursively insert all host nodes into the parent.
-  const parentFiber = getHostParentFiber(finishedWork); // workInprogress
+  const parentFiber = getHostParentFiber(finishedWork); // App wip fiber
+  // FiberNode
 
   switch (parentFiber.tag) {
     case HostSingleton: {
@@ -1955,7 +1956,7 @@ function commitPlacement(finishedWork: Fiber): void {
       insertOrAppendPlacementNode(finishedWork, before, parent);
       break;
     }
-    case HostRoot:
+    case HostRoot: // +++
     case HostPortal: {
       // #root
       const parent: Container = parentFiber.stateNode.containerInfo; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1978,7 +1979,7 @@ function insertOrAppendPlacementNodeIntoContainer( // ++++++++++++++++++++++++++
   before: ?Instance,
   parent: Container,
 ): void {
-  const {tag} = node;
+  const {tag} = node; // App wip fiber -> fragment fiber -> button fiber -> p fiber
   const isHost = tag === HostComponent || tag === HostText; // +++++++++++++++++++++++++++++ button fiber is host
   if (isHost) {
     const stateNode = node.stateNode; // button dom
@@ -1998,10 +1999,14 @@ function insertOrAppendPlacementNodeIntoContainer( // ++++++++++++++++++++++++++
     // the portal directly.
     // If the insertion is a HostSingleton then it will be placed independently
   } else {
-    const child = node.child; // App fiber, button fiber
+    // App wip fiber -> fragment fiber
+    const child = node.child; // fragment fiber -> button fiber
     if (child !== null) {
+      // 插入 // +++
       insertOrAppendPlacementNodeIntoContainer(child, before, parent); // ++++++++++++++++++++++++++
-      let sibling = child.sibling;
+      // 兄弟 // +++
+      let sibling = child.sibling; // p fiber
+      // 循环插入 // +++
       while (sibling !== null) {
         insertOrAppendPlacementNodeIntoContainer(sibling, before, parent);
         sibling = sibling.sibling;
@@ -2701,6 +2706,9 @@ function commitMutationEffectsOnFiber(
       // App fiber: commitReconciliationEffects -> commitPlacement
       commitReconciliationEffects(finishedWork); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // 插入新的的或是移动旧的 // +++
+      // 初次挂载时如何挂载真实dom树的逻辑在这里 // +++ // 因为对于函数式组件对应的wip fiber的flags是有Placement的（beginWork -> updateHostRoot -> reconcileChildFibers（而不是mountChildFibers））
+      // 但是fragment的flags是没有的，所以说在初次挂载时是在这里把真实dom添加进容器的（beginWork -> mountIndeterminateComponent -> mountChildFibers（而不是reconcileChildFibers）） // +++
+      // 提交新的节点或是移动旧的节点 // +++
 
       if (flags & Update) {
         try {
@@ -3148,7 +3156,13 @@ function commitMutationEffectsOnFiber(
       }
       return;
     }
-    default: {
+    default: { // fragmnet直接在在这里没有额外的逻辑 - 直接就是略过了继续向下啦 ~
+      // 所以说这个fragment在react中并没有什么额外的dom节点以及其它的逻辑
+      // 而在vue3中fragment对应dom节点是有的 - 直接对应的就是两个空字符串的文本节点
+      // ''
+      // ...
+      // ''
+      // 这样的结构 - 但是在react中没有此操作 - 直接就是干净的
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
       commitReconciliationEffects(finishedWork);
 
@@ -3465,7 +3479,7 @@ export function reappearLayoutEffects(
       safelyAttachRef(finishedWork, finishedWork.return);
       break;
     }
-    default: {
+    default: { // fragmnet也是略过直接向下 // +++
       recursivelyTraverseReappearLayoutEffects(
         finishedRoot,
         finishedWork,

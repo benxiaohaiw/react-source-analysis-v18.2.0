@@ -9,7 +9,7 @@
 
 import ReactVersion from 'shared/ReactVersion';
 import {
-  REACT_FRAGMENT_TYPE,
+  REACT_FRAGMENT_TYPE, // +++
   REACT_DEBUG_TRACING_MODE_TYPE,
   REACT_PROFILER_TYPE,
   REACT_STRICT_MODE_TYPE,
@@ -20,7 +20,7 @@ import {
   REACT_SCOPE_TYPE,
   REACT_CACHE_TYPE,
   REACT_TRACING_MARKER_TYPE,
-} from 'shared/ReactSymbols';
+} from 'shared/ReactSymbols'; // +++
 
 import {Component, PureComponent} from './ReactBaseClasses';
 import {createRef} from './ReactCreateRef';
@@ -116,7 +116,7 @@ export {
   useReducer,
   useRef,
   useState,
-  REACT_FRAGMENT_TYPE as Fragment,
+  REACT_FRAGMENT_TYPE as Fragment, // 直接就是一个Symbol值 +++
   REACT_PROFILER_TYPE as Profiler,
   REACT_STRICT_MODE_TYPE as StrictMode,
   REACT_DEBUG_TRACING_MODE_TYPE as unstable_DebugTracingMode,

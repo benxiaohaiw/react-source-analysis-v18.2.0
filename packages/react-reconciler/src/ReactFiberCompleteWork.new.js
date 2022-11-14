@@ -912,7 +912,7 @@ function completeWork(
     case SimpleMemoComponent:
     case FunctionComponent: // 函数式组件 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ForwardRef:
-    case Fragment:
+    case Fragment: // fragment - 在这里直接就是bubbleProperties啦 ~
     case Mode:
     case Profiler:
     case ContextConsumer: // 上下文消费者 // +++

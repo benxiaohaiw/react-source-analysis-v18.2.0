@@ -14,7 +14,20 @@
 // The Symbol used to tag the ReactElement-like types.
 export const REACT_ELEMENT_TYPE: symbol = Symbol.for('react.element');
 export const REACT_PORTAL_TYPE: symbol = Symbol.for('react.portal');
-export const REACT_FRAGMENT_TYPE: symbol = Symbol.for('react.fragment');
+
+// +++
+export const REACT_FRAGMENT_TYPE: symbol = Symbol.for('react.fragment'); // +++
+/* 
+https://babeljs.io/repl
+<>
+  <p>张佳宁</p>  
+</>
+*/
+
+// "use strict";
+
+// /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", null, "\u5F20\u4F73\u5B81"));
+
 export const REACT_STRICT_MODE_TYPE: symbol = Symbol.for('react.strict_mode');
 export const REACT_PROFILER_TYPE: symbol = Symbol.for('react.profiler');
 export const REACT_PROVIDER_TYPE: symbol = Symbol.for('react.provider');

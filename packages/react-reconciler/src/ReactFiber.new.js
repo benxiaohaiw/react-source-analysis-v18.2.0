@@ -557,8 +557,10 @@ export function createFiberFromTypeAndProps( // +++
     }
   } else {
     getTag: switch (type) { // 到这里react元素的type值可能直接是一个Symbol值或者是一个对象
-      case REACT_FRAGMENT_TYPE:
-        return createFiberFromFragment(pendingProps.children, mode, lanes, key);
+      case REACT_FRAGMENT_TYPE: // fragment // +++
+        // +++
+        // 直接取出pendingProps中的children作为elements - 也就是作为这个fiber的直接pendingProps // +++
+        return createFiberFromFragment(pendingProps.children, mode, lanes, key); // 从fragment中创建fiber // +++
       case REACT_STRICT_MODE_TYPE:
         fiberTag = Mode;
         mode |= StrictLegacyMode;
@@ -704,15 +706,17 @@ export function createFiberFromElement( // +++
   return fiber;
 }
 
+/// 从fragment中创建fiber
 export function createFiberFromFragment(
   elements: ReactFragment,
   mode: TypeOfMode,
   lanes: Lanes,
   key: null | string,
 ): Fiber {
+  // fiber的tag为Fragment, 而它的pendingProps直接就是元素children // +++
   const fiber = createFiber(Fragment, elements, key, mode);
   fiber.lanes = lanes;
-  return fiber;
+  return fiber; // 返回fiber // +++
 }
 
 function createFiberFromScope(
