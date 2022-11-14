@@ -2700,20 +2700,29 @@ function commitMutationEffectsOnFiber(
       // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // App fiber: commitReconciliationEffects -> commitPlacement
       commitReconciliationEffects(finishedWork); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      // 插入新的的或是移动旧的 // +++
 
       if (flags & Update) {
         try {
-          // 
+          // +++ // 提交HookInsertion的卸载函数 // +++
           commitHookEffectListUnmount(
-            HookInsertion | HookHasEffect,
+            HookInsertion | HookHasEffect, // +++
             finishedWork,
             finishedWork.return,
           );
           
+          // +++ // 提交HookInsertion的挂载函数 // +++
           commitHookEffectListMount(
-            HookInsertion | HookHasEffect,
+            HookInsertion | HookHasEffect, // +++
             finishedWork,
           );
+
+          /* 
+          注意：他在这里提交HookInsertion的位置发现是在修改完dom之后再进行提交的 // +++
+          // 但是呢又是在提交HookLayout的卸载之前进行的 // +++
+          // 而提交HookLayout的挂载是在后面又一轮的commitLayoutEffects中同步进行的 // +++
+          */
+
         } catch (error) {
           captureCommitPhaseError(finishedWork, finishedWork.return, error);
         }

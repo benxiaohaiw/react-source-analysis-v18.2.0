@@ -2297,18 +2297,28 @@ function updateEvent<Args, Return, F: (...Array<Args>) => Return>(
   };
 }
 
+// 挂载插入effect
 function mountInsertionEffect(
   create: () => (() => void) | void,
   deps: Array<mixed> | void | null,
 ): void {
-  return mountEffectImpl(UpdateEffect, HookInsertion, create, deps);
+  // fiberFlags: UpdateEffect - currentlyRenderingFiber.flags |= fiberFlags;
+  // hookFlags: HookInsertion - effect对象的tag使用的
+  // 其余的和useEffect在挂载effect实现是一样的方法的 // +++
+  // 只是两者的标记不一样的 // +++
+  return mountEffectImpl(UpdateEffect, HookInsertion, create, deps); // 挂载插入effect实现 // +++
 }
 
+// 更新插入effect // +++
 function updateInsertionEffect(
   create: () => (() => void) | void,
   deps: Array<mixed> | void | null,
 ): void {
-  return updateEffectImpl(UpdateEffect, HookInsertion, create, deps);
+  // fiberFlags: UpdateEffect - currentlyRenderingFiber.flags |= fiberFlags;
+  // hookFlags: HookInsertion - effect对象的tag使用的
+  // 其余的和useEffect在更新effect实现是一样的方法的 // +++
+  // 只是两者的标记不一样的 // +++
+  return updateEffectImpl(UpdateEffect, HookInsertion, create, deps); // 更新插入effect实现 // +++
 }
 
 // 挂载布局effect
@@ -3716,6 +3726,7 @@ if (__DEV__) {
       checkDepsAreArrayDev(deps);
       return mountImperativeHandle(ref, create, deps); // 挂载 // +++++++++++++++++++++++++++++++++++++++++++++++++
     },
+    // OnMount期间的useInsertionEffect
     useInsertionEffect(
       create: () => (() => void) | void,
       deps: Array<mixed> | void | null,
@@ -3723,7 +3734,7 @@ if (__DEV__) {
       currentHookNameInDev = 'useInsertionEffect';
       mountHookTypesDev();
       checkDepsAreArrayDev(deps);
-      return mountInsertionEffect(create, deps);
+      return mountInsertionEffect(create, deps); // 挂载插入effect // +++
     },
     // // OnMount期间的useLayoutEffect
     useLayoutEffect(
@@ -4082,13 +4093,14 @@ if (__DEV__) {
       updateHookTypesDev();
       return updateImperativeHandle(ref, create, deps); // 更新 // ++++++++++++++++++++++++++++++++++++++++++++++++++++
     },
+    // OnUpdate期间的useInsertionEffect
     useInsertionEffect(
       create: () => (() => void) | void,
       deps: Array<mixed> | void | null,
     ): void {
       currentHookNameInDev = 'useInsertionEffect';
       updateHookTypesDev();
-      return updateInsertionEffect(create, deps);
+      return updateInsertionEffect(create, deps); // 更新插入effect // +++
     },
     // OnUpdate期间的useLayoutEffect
     useLayoutEffect(
