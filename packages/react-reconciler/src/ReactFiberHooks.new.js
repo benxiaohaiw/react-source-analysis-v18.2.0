@@ -3120,16 +3120,18 @@ export function getIsUpdatingOpaqueValueInRenderPhaseInDEV(): boolean | void {
   }
 }
 
+// 挂载id
 function mountId(): string {
   const hook = mountWorkInProgressHook();
+  // 形成hook链表 // +++
 
-  const root = ((getWorkInProgressRoot(): any): FiberRoot);
+  const root = ((getWorkInProgressRoot(): any): FiberRoot); // 其实就是获取FiberRootNode // +++
   // TODO: In Fizz, id generation is specific to each server config. Maybe we
   // should do this in Fiber, too? Deferring this decision for now because
   // there's no other place to store the prefix except for an internal field on
   // the public createRoot object, which the fiber tree does not currently have
   // a reference to.
-  const identifierPrefix = root.identifierPrefix;
+  const identifierPrefix = root.identifierPrefix; // 获取root上的标识符前缀 // +++
 
   let id;
   if (getIsHydrating()) {
@@ -3148,18 +3150,25 @@ function mountId(): string {
 
     id += ':';
   } else {
+    // 对客户端生成的id使用小写的r前缀。 // +++
     // Use a lowercase r prefix for client-generated ids.
-    const globalClientId = globalClientIdCounter++;
-    id = ':' + identifierPrefix + 'r' + globalClientId.toString(32) + ':';
+    const globalClientId = globalClientIdCounter++; // globalClientIdCounter默认为0 // 有个全局客户端id // +++
+    id = ':' + identifierPrefix + 'r' + globalClientId.toString(32) + ':'; // +++
   }
 
-  hook.memoizedState = id;
-  return id;
+  hook.memoizedState = id; // 放置在hook对象的memoizedState属性上
+
+  return id; // 返回id
 }
 
+// 更新id
 function updateId(): string {
   const hook = updateWorkInProgressHook();
-  const id: string = hook.memoizedState;
+  // 浅克隆 - 主要还是hook的memoizedState属性 - 其实还是current hook的memoizedState
+
+  const id: string = hook.memoizedState; // 还是取出它 - 进行重用 // +++
+
+  // 直接返回这个id // +++
   return id;
 }
 
@@ -3821,10 +3830,11 @@ if (__DEV__) {
       // getSnapshot函数【每次都会执行】的（不管是在挂载还是更新）
       return mountSyncExternalStore(subscribe, getSnapshot, getServerSnapshot); // 挂载同步外部储存
     },
+    // OnMount期间的useId
     useId(): string {
       currentHookNameInDev = 'useId';
       mountHookTypesDev();
-      return mountId();
+      return mountId(); // 直接挂载id
     },
 
     unstable_isNewReconciler: enableNewReconciler,
@@ -4173,10 +4183,11 @@ if (__DEV__) {
       updateHookTypesDev();
       return updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot); // 更新同步外部存储
     },
+    // OnUpdate期间的useId
     useId(): string {
       currentHookNameInDev = 'useId';
       updateHookTypesDev();
-      return updateId();
+      return updateId(); // 更新id // +++
     },
 
     unstable_isNewReconciler: enableNewReconciler,
