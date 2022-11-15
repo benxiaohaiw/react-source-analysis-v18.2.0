@@ -1755,6 +1755,39 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
       newChild.key === null;
     if (isUnkeyedTopLevelFragment) { // 如果是则取出它的孩子即可 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       newChild = newChild.props.children;
+      // 是不带有key的顶级fragment - 那么直接取出它的children属性作为本次的newChild
+      /* 
+      所以你就会看到
+      比如：
+      function App() {
+        return (
+          <>
+            <h2></h2>
+            ...
+          </>
+        )
+      }
+      那么App fiber的child直接是h2 fiber啦 - 要注意！！！
+      // 这个就直接省略了fragment对应的fiber了直接略过它 - 而是直接使用它的孩子作为直接的fiber - 要注意的！！！
+
+      而对于其他的
+      比如
+      return (
+        <Fragment key={xxx}>
+        
+        </Fragment>
+      )
+
+      return (
+        <div>
+          <>
+            123
+          </>
+        </div>
+      )
+      // 以上这些都是会有对应的fragment的fiber的
+
+      */
     }
 
     // 对newChild的类型做出判断 // +++
