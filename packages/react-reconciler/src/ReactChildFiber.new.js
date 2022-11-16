@@ -1838,14 +1838,14 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
               lanes,
             ),
           );
-        case REACT_LAZY_TYPE:
-          const payload = newChild._payload;
-          const init = newChild._init;
+        case REACT_LAZY_TYPE: // +++
+          const payload = newChild._payload; // +++
+          const init = newChild._init; // +++
           // TODO: This function is supposed to be non-recursive.
           return reconcileChildFibers(
             returnFiber,
             currentFirstChild,
-            init(payload),
+            init(payload), // +++ // 报错 - 抛出的是一个promise - 那么又到handleThrow中了 -> workLoopSync -> resumeSuspendedUnitOfWork
             lanes,
           );
       }

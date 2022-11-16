@@ -243,18 +243,21 @@ export function isSimpleFunctionComponent(type: any): boolean {
   );
 }
 
+// 解析懒组件标签 // +++
 export function resolveLazyComponentTag(Component: Function): WorkTag {
   if (typeof Component === 'function') {
-    return shouldConstruct(Component) ? ClassComponent : FunctionComponent;
+    return shouldConstruct(Component) ? ClassComponent : FunctionComponent; // 类式组件 or 函数式组件 // +++
   } else if (Component !== undefined && Component !== null) {
     const $$typeof = Component.$$typeof;
-    if ($$typeof === REACT_FORWARD_REF_TYPE) {
+    if ($$typeof === REACT_FORWARD_REF_TYPE) { // forwardRef
       return ForwardRef;
     }
-    if ($$typeof === REACT_MEMO_TYPE) {
+    if ($$typeof === REACT_MEMO_TYPE) { // memo
       return MemoComponent;
     }
   }
+
+  // 不确定组件 // +++
   return IndeterminateComponent;
 }
 
@@ -572,8 +575,9 @@ export function createFiberFromTypeAndProps( // +++
         break;
       case REACT_PROFILER_TYPE:
         return createFiberFromProfiler(pendingProps, mode, lanes, key);
-      case REACT_SUSPENSE_TYPE:
-        return createFiberFromSuspense(pendingProps, mode, lanes, key);
+      case REACT_SUSPENSE_TYPE: // <Suspense> // +++
+        // 从Suspense中创建fiber // +++
+        return createFiberFromSuspense(pendingProps, mode, lanes, key); // +++
       case REACT_SUSPENSE_LIST_TYPE:
         return createFiberFromSuspenseList(pendingProps, mode, lanes, key);
       case REACT_OFFSCREEN_TYPE:
@@ -625,9 +629,9 @@ export function createFiberFromTypeAndProps( // +++
             case REACT_MEMO_TYPE: // memo +++
               fiberTag = MemoComponent; // +++
               break getTag;
-            case REACT_LAZY_TYPE:
-              fiberTag = LazyComponent;
-              resolvedType = null;
+            case REACT_LAZY_TYPE: // +++ - lazy(...)
+              fiberTag = LazyComponent; // +++
+              resolvedType = null; // +++
               break getTag;
           }
         }
@@ -763,15 +767,21 @@ function createFiberFromProfiler(
   return fiber;
 }
 
+// 从suspense中创建fiber // +++
 export function createFiberFromSuspense(
   pendingProps: any,
   mode: TypeOfMode,
   lanes: Lanes,
   key: null | string,
 ): Fiber {
-  const fiber = createFiber(SuspenseComponent, pendingProps, key, mode);
-  fiber.elementType = REACT_SUSPENSE_TYPE;
+
+  // +++
+  const fiber = createFiber(SuspenseComponent, pendingProps, key, mode); // +++
+
+  fiber.elementType = REACT_SUSPENSE_TYPE; // fiber的元素类型 // +++
   fiber.lanes = lanes;
+  
+  // 返回fiber // +++
   return fiber;
 }
 
@@ -787,24 +797,37 @@ export function createFiberFromSuspenseList(
   return fiber;
 }
 
+// 从离屏创建fiber // +++
 export function createFiberFromOffscreen(
   pendingProps: OffscreenProps,
   mode: TypeOfMode,
   lanes: Lanes,
   key: null | string,
 ): Fiber {
+
+  // 创建fiber // +++
   const fiber = createFiber(OffscreenComponent, pendingProps, key, mode);
-  fiber.elementType = REACT_OFFSCREEN_TYPE;
+
+  // +++
+  fiber.elementType = REACT_OFFSCREEN_TYPE; // +++
   fiber.lanes = lanes;
+
+  // 主要孩子实例 // +++
   const primaryChildInstance: OffscreenInstance = {
-    _visibility: OffscreenVisible,
+
+    _visibility: OffscreenVisible, // +++
+    
     _pendingMarkers: null,
     _retryCache: null,
     _transitions: null,
     _current: null,
     detach: () => detachOffscreenInstance(primaryChildInstance),
   };
+
+  // stateNode为主要孩子实例 // +++
   fiber.stateNode = primaryChildInstance;
+
+  // 返回这个fiber // +++
   return fiber;
 }
 

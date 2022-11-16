@@ -9,8 +9,9 @@
 
 import assign from 'shared/assign';
 
+// 解析默认属性 // +++
 export function resolveDefaultProps(Component: any, baseProps: Object): Object {
-  if (Component && Component.defaultProps) {
+  if (Component && Component.defaultProps) { // +++
     // Resolve default props. Taken from ReactElement
     const props = assign({}, baseProps);
     const defaultProps = Component.defaultProps;

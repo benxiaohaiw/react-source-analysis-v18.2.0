@@ -699,6 +699,7 @@ export function clearSuspenseBoundaryFromContainer(
   retryIfBlockedOn(container);
 }
 
+// 隐藏实例 // +++
 export function hideInstance(instance: Instance): void {
   // TODO: Does this work for all element types? What about MathML? Should we
   // pass host context to this method?
@@ -706,14 +707,15 @@ export function hideInstance(instance: Instance): void {
   const style = instance.style;
   // $FlowFixMe[method-unbinding]
   if (typeof style.setProperty === 'function') {
-    style.setProperty('display', 'none', 'important');
+    style.setProperty('display', 'none', 'important'); // +++
   } else {
-    style.display = 'none';
+    style.display = 'none'; // +++
   }
 }
 
+// 隐藏文本实例 // +++
 export function hideTextInstance(textInstance: TextInstance): void {
-  textInstance.nodeValue = '';
+  textInstance.nodeValue = ''; // +++
 }
 
 export function unhideInstance(instance: Instance, props: Props): void {

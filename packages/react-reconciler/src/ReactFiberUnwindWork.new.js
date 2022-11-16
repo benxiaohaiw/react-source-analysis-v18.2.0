@@ -60,6 +60,8 @@ import {
   popRootMarkerInstance,
 } from './ReactFiberTracingMarkerComponent.new';
 
+
+// 放松工作 // +++
 function unwindWork(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -124,7 +126,7 @@ function unwindWork(
       popHostContext(workInProgress);
       return null;
     }
-    case SuspenseComponent: {
+    case SuspenseComponent: { // null
       popSuspenseHandler(workInProgress);
       const suspenseState: null | SuspenseState = workInProgress.memoizedState;
       if (suspenseState !== null && suspenseState.dehydrated !== null) {
@@ -140,7 +142,7 @@ function unwindWork(
 
       const flags = workInProgress.flags;
       if (flags & ShouldCapture) {
-        workInProgress.flags = (flags & ~ShouldCapture) | DidCapture;
+        workInProgress.flags = (flags & ~ShouldCapture) | DidCapture; // 或DidCapture // +++
         // Captured a suspense effect. Re-render the boundary.
         if (
           enableProfilerTimer &&
@@ -148,7 +150,10 @@ function unwindWork(
         ) {
           transferActualDuration(workInProgress);
         }
-        return workInProgress;
+
+        // +++
+        // ++++++
+        return workInProgress; // 返回这个SuspenseComponent
       }
       return null;
     }
@@ -165,7 +170,7 @@ function unwindWork(
       const context: ReactContext<any> = workInProgress.type._context;
       popProvider(context, workInProgress);
       return null;
-    case OffscreenComponent:
+    case OffscreenComponent: // +++
     case LegacyHiddenComponent: {
       popSuspenseHandler(workInProgress);
       popHiddenContext(workInProgress);
@@ -182,7 +187,7 @@ function unwindWork(
         }
         return workInProgress;
       }
-      return null;
+      return null; // +++
     }
     case CacheComponent:
       if (enableCache) {
@@ -197,8 +202,8 @@ function unwindWork(
         }
       }
       return null;
-    default:
-      return null;
+    default: // +++
+      return null; // null
   }
 }
 

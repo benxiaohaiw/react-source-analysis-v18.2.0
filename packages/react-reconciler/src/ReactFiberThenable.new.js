@@ -19,7 +19,7 @@ const {ReactCurrentActQueue} = ReactSharedInternals;
 
 export opaque type ThenableState = Array<Thenable<any>>;
 
-let thenableState: ThenableState | null = null;
+let thenableState: ThenableState | null = null; // +++
 
 export function createThenableState(): ThenableState {
   // The ThenableState is created the first time a component suspends. If it
@@ -34,6 +34,7 @@ export function prepareThenableState(prevThenableState: ThenableState | null) {
   thenableState = prevThenableState;
 }
 
+// +++
 export function getThenableStateAfterSuspending(): ThenableState | null {
   // Called by the work loop so it can stash the thenable state. It will use
   // the state to replay the component when the promise resolves.
@@ -49,7 +50,7 @@ export function getThenableStateAfterSuspending(): ThenableState | null {
     thenableState = null;
     return state;
   }
-  return null;
+  return null; // +++
 }
 
 export function isThenableStateResolved(thenables: ThenableState): boolean {

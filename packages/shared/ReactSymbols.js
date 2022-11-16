@@ -39,7 +39,11 @@ export const REACT_SERVER_CONTEXT_TYPE: symbol = Symbol.for(
 // +++
 export const REACT_FORWARD_REF_TYPE: symbol = Symbol.for('react.forward_ref'); // +++
 
-export const REACT_SUSPENSE_TYPE: symbol = Symbol.for('react.suspense');
+
+// +++
+export const REACT_SUSPENSE_TYPE: symbol = Symbol.for('react.suspense'); // +++
+
+
 export const REACT_SUSPENSE_LIST_TYPE: symbol = Symbol.for(
   'react.suspense_list',
 );

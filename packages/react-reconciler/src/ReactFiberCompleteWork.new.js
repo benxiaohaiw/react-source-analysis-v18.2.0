@@ -912,7 +912,7 @@ function completeWork(
     case SimpleMemoComponent: // +++
     case FunctionComponent: // 函数式组件 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     case ForwardRef: // +++ forwardRef对应的组件
-    case Fragment: // fragment - 在这里直接就是bubbleProperties啦 ~
+    case Fragment: // fragment - 在这里直接就是bubbleProperties啦 ~ // +++
     case Mode:
     case Profiler:
     case ContextConsumer: // 上下文消费者 // +++
@@ -1292,7 +1292,9 @@ function markUpdate(workInProgress: Fiber) {
       bubbleProperties(workInProgress); // 冒泡属性+++++++++++++++++++++=++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
       return null; // 返回null // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     }
-    case SuspenseComponent: {
+
+    // +++
+    case SuspenseComponent: { // +++
       popSuspenseHandler(workInProgress);
       const nextState: null | SuspenseState = workInProgress.memoizedState;
 
@@ -1340,7 +1342,8 @@ function markUpdate(workInProgress: Fiber) {
         return workInProgress;
       }
 
-      const nextDidTimeout = nextState !== null;
+      // +++
+      const nextDidTimeout = nextState !== null; // +++
       const prevDidTimeout =
         current !== null &&
         (current.memoizedState: null | SuspenseState) !== null;
@@ -1370,7 +1373,7 @@ function markUpdate(workInProgress: Fiber) {
 
       // If the suspended state of the boundary changes, we need to schedule
       // a passive effect, which is when we process the transitions
-      if (nextDidTimeout !== prevDidTimeout) {
+      if (nextDidTimeout !== prevDidTimeout) { // true
         if (enableTransitionTracing) {
           const offscreenFiber: Fiber = (workInProgress.child: any);
           offscreenFiber.flags |= Passive;
@@ -1387,9 +1390,9 @@ function markUpdate(workInProgress: Fiber) {
         // logic applies: when re-connecting, the Offscreen fiber's complete
         // phase will handle scheduling the effect. It's only when the fallback
         // is active that we have to do anything special.
-        if (nextDidTimeout) {
+        if (nextDidTimeout) { // +++
           const offscreenFiber: Fiber = (workInProgress.child: any);
-          offscreenFiber.flags |= Visibility;
+          offscreenFiber.flags |= Visibility; // 给OffscreenComponent的flags加上Visibility这个标记 // ++++++
 
           // TODO: This will still suspend a synchronous tree if anything
           // in the concurrent tree already suspended during this render.
@@ -1424,11 +1427,12 @@ function markUpdate(workInProgress: Fiber) {
         }
       }
 
+      // 这个是在workLoopSync -> resumeSuspendedUnitOfWork -> throwException中做的事情 // +++
       const wakeables: Set<Wakeable> | null = (workInProgress.updateQueue: any);
       if (wakeables !== null) {
         // Schedule an effect to attach a retry listener to the promise.
         // TODO: Move to passive phase
-        workInProgress.flags |= Update;
+        workInProgress.flags |= Update; // 给SuspenseComponent的flags加上Update这个标记 // ++++++
       }
 
       if (
@@ -1440,7 +1444,11 @@ function markUpdate(workInProgress: Fiber) {
         // TODO: Move to passive phase
         workInProgress.flags |= Update;
       }
-      bubbleProperties(workInProgress);
+
+      // 冒泡属性 // +++
+      bubbleProperties(workInProgress); // +++
+
+
       if (enableProfilerTimer) {
         if ((workInProgress.mode & ProfileMode) !== NoMode) {
           if (nextDidTimeout) {
@@ -1735,11 +1743,23 @@ function markUpdate(workInProgress: Fiber) {
       }
       break;
     }
-    case OffscreenComponent:
+    case OffscreenComponent: // +++
     case LegacyHiddenComponent: {
       popSuspenseHandler(workInProgress);
       popHiddenContext(workInProgress);
       const nextState: OffscreenState | null = workInProgress.memoizedState;
+      /* 
+      packages/react-reconciler/src/ReactFiberBeginWork.new.js
+
+      // +++
+function mountSuspenseOffscreenState(renderLanes: Lanes): OffscreenState {
+  return {
+    baseLanes: renderLanes,
+    cachePool: getSuspendedCache(),
+  };
+}
+      */
+
       const nextIsHidden = nextState !== null;
 
       // Schedule a Visibility effect if the visibility has changed
@@ -1752,11 +1772,14 @@ function markUpdate(workInProgress: Fiber) {
           if (prevIsHidden !== nextIsHidden) {
             workInProgress.flags |= Visibility;
           }
-        } else {
+        } else { // +++
+
+          // ++++++
+
           // On initial mount, we only need a Visibility effect if the tree
           // is hidden.
-          if (nextIsHidden) {
-            workInProgress.flags |= Visibility;
+          if (nextIsHidden) { // 给这个OffscreenComponent的flags加上Visibility这个标记 // +++
+            workInProgress.flags |= Visibility; // +++
           }
         }
       }

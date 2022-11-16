@@ -308,6 +308,7 @@ function markSuspenseBoundaryShouldCapture(
   return suspenseBoundary;
 }
 
+// 抛出异常 // +++
 function throwException(
   root: FiberRoot,
   returnFiber: Fiber,
@@ -316,7 +317,7 @@ function throwException(
   rootRenderLanes: Lanes,
 ): void {
   // The source fiber did not complete.
-  sourceFiber.flags |= Incomplete;
+  sourceFiber.flags |= Incomplete; // 标记完成 - 那么所以在completeUnitOfWork中就会起到作用的 // +++
 
   if (enableUpdaterTracking) {
     if (isDevToolsPresent) {
@@ -331,7 +332,7 @@ function throwException(
     typeof value.then === 'function'
   ) {
     // This is a wakeable. The component suspended.
-    const wakeable: Wakeable = (value: any);
+    const wakeable: Wakeable = (value: any); // promise值 // +++
     resetSuspendedComponent(sourceFiber, rootRenderLanes);
 
     if (__DEV__) {
@@ -352,7 +353,7 @@ function throwException(
     // Schedule the nearest Suspense to re-render the timed out view.
     const suspenseBoundary = getSuspenseHandler();
     if (suspenseBoundary !== null) {
-      switch (suspenseBoundary.tag) {
+      switch (suspenseBoundary.tag) { // SuspenseComponent
         case SuspenseComponent: {
           suspenseBoundary.flags &= ~ForceClientRender;
           markSuspenseBoundaryShouldCapture(
@@ -375,7 +376,7 @@ function throwException(
           // again ("retry").
           const wakeables: Set<Wakeable> | null = (suspenseBoundary.updateQueue: any);
           if (wakeables === null) {
-            suspenseBoundary.updateQueue = new Set([wakeable]);
+            suspenseBoundary.updateQueue = new Set([wakeable]); // +++ // promise加入进去 // +++
           } else {
             wakeables.add(wakeable);
           }
@@ -416,7 +417,9 @@ function throwException(
       if (suspenseBoundary.mode & ConcurrentMode) {
         attachPingListener(root, wakeable, rootRenderLanes);
       }
-      return;
+
+      // +++
+      return; // +++
     } else {
       // No boundary was found. Unless this is a sync update, this is OK.
       // We can suspend and wait for more data to arrive.

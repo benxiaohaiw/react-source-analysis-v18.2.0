@@ -1554,6 +1554,7 @@ function commitTransitionProgress(offscreenFiber: Fiber) {
   }
 }
 
+// 隐藏或取消隐藏所有的孩子 // +++
 function hideOrUnhideAllChildren(finishedWork, isHidden) {
   // Only hide or unhide the top-most host nodes.
   let hostSubtreeRoot = null;
@@ -1577,7 +1578,10 @@ function hideOrUnhideAllChildren(finishedWork, isHidden) {
           try {
             const instance = node.stateNode;
             if (isHidden) {
-              hideInstance(instance);
+              // packages/react-dom-bindings/src/client/ReactDOMHostConfig.js
+              // 隐藏实例 // +++
+              // 让其真实dom元素的style中添加display: none !important // +++
+              hideInstance(instance); // +++
             } else {
               unhideInstance(node.stateNode, node.memoizedProps);
             }
@@ -1590,7 +1594,8 @@ function hideOrUnhideAllChildren(finishedWork, isHidden) {
           try {
             const instance = node.stateNode;
             if (isHidden) {
-              hideTextInstance(instance);
+              hideTextInstance(instance); // 隐藏文本实例 // +++
+              // 就是给这个文本dom节点的nodeValue置为空字符串'' // ++++++
             } else {
               unhideTextInstance(instance, node.memoizedProps);
             }
@@ -1606,9 +1611,9 @@ function hideOrUnhideAllChildren(finishedWork, isHidden) {
       ) {
         // Found a nested Offscreen component that is hidden.
         // Don't search any deeper. This tree should remain hidden.
-      } else if (node.child !== null) {
+      } else if (node.child !== null) { // +++
         node.child.return = node;
-        node = node.child;
+        node = node.child; // +++ // 复用的current FunctionComponent fiber // +++
         continue;
       }
 
@@ -1616,15 +1621,15 @@ function hideOrUnhideAllChildren(finishedWork, isHidden) {
         return;
       }
       while (node.sibling === null) {
-        if (node.return === null || node.return === finishedWork) {
-          return;
+        if (node.return === null || node.return === finishedWork) { // +++
+          return; // +++
         }
 
         if (hostSubtreeRoot === node) {
           hostSubtreeRoot = null;
         }
 
-        node = node.return;
+        node = node.return; // +++
       }
 
       if (hostSubtreeRoot === node) {
@@ -2441,6 +2446,8 @@ function commitDeletionEffectsOnFiber(
     }
   }
 }
+
+// 提交挂起回调 // +++
 function commitSuspenseCallback(finishedWork: Fiber) {
   // TODO: Move this to passive phase
   const newState: SuspenseState | null = finishedWork.memoizedState;
@@ -2549,6 +2556,7 @@ export function detachOffscreenInstance(instance: OffscreenInstance): void {
   }
 }
 
+// 附加挂起重试监听器 // +++
 function attachSuspenseRetryListeners(
   finishedWork: Fiber,
   wakeables: Set<Wakeable>,
@@ -2559,7 +2567,7 @@ function attachSuspenseRetryListeners(
   const retryCache = getRetryCache(finishedWork);
   wakeables.forEach(wakeable => {
     // Memoize using the boundary fiber to prevent redundant listeners.
-    const retry = resolveRetryWakeable.bind(null, finishedWork, wakeable);
+    const retry = resolveRetryWakeable.bind(null, finishedWork, wakeable); // +++ 重点 // +++
     if (!retryCache.has(wakeable)) {
       retryCache.add(wakeable);
 
@@ -2576,7 +2584,8 @@ function attachSuspenseRetryListeners(
         }
       }
 
-      wakeable.then(retry, retry);
+      // 给这个promise注册失败回调 // +++
+      wakeable.then(retry, retry); // ++++++
     }
   });
 }
@@ -2633,12 +2642,13 @@ function recursivelyTraverseMutationEffects(
   // 可以在任何类型的fiber上调度删除effect。它们需要在触发子effect之前发生。
   // Deletions effects can be scheduled on any fiber type. They need to happen
   // before the children effects hae fired.
-  const deletions = parentFiber.deletions; // 是否有需要删除的
-  if (deletions !== null) {
-    for (let i = 0; i < deletions.length; i++) {
+  const deletions = parentFiber.deletions; // 是否有需要删除的 // +++
+  if (deletions !== null) { // +++
+    for (let i = 0; i < deletions.length; i++) { // 遍历 // +++
       const childToDelete = deletions[i];
       try {
-        commitDeletionEffects(root, parentFiber, childToDelete);
+        // // +++
+        commitDeletionEffects(root, parentFiber, childToDelete); // +++ // 删除suspense的fallback // +++
       } catch (error) {
         captureCommitPhaseError(childToDelete, parentFiber, error);
       }
@@ -3041,8 +3051,11 @@ function commitMutationEffectsOnFiber(
       }
       return;
     }
-    case SuspenseComponent: {
-      recursivelyTraverseMutationEffects(root, finishedWork, lanes);
+    // +++
+    case SuspenseComponent: { // +++
+
+      // +++
+      recursivelyTraverseMutationEffects(root, finishedWork, lanes); // +++
       commitReconciliationEffects(finishedWork);
 
       const offscreenFiber: Fiber = (finishedWork.child: any);
@@ -3061,21 +3074,30 @@ function commitMutationEffectsOnFiber(
         }
       }
 
-      if (flags & Update) {
+      // +++
+      if (flags & Update) { // +++
         try {
-          commitSuspenseCallback(finishedWork);
+          // 提交挂起回调 // +++
+          commitSuspenseCallback(finishedWork); // +++
         } catch (error) {
           captureCommitPhaseError(finishedWork, finishedWork.return, error);
         }
-        const wakeables: Set<Wakeable> | null = (finishedWork.updateQueue: any);
+        // +++
+        const wakeables: Set<Wakeable> | null = (finishedWork.updateQueue: any); // +++
         if (wakeables !== null) {
-          finishedWork.updateQueue = null;
-          attachSuspenseRetryListeners(finishedWork, wakeables);
+
+          // +++
+          finishedWork.updateQueue = null; // 置为null // +++
+
+          // 附加挂起重试监听器 // +++
+          attachSuspenseRetryListeners(finishedWork, wakeables); // +++
         }
       }
       return;
     }
-    case OffscreenComponent: {
+
+    // +++
+    case OffscreenComponent: { // +++
       if (flags & Ref) {
         if (current !== null) {
           safelyDetachRef(current, current.return);
@@ -3098,7 +3120,9 @@ function commitMutationEffectsOnFiber(
         offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden;
         offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden;
       } else {
-        recursivelyTraverseMutationEffects(root, finishedWork, lanes);
+
+        // +++
+        recursivelyTraverseMutationEffects(root, finishedWork, lanes); // +++
       }
 
       commitReconciliationEffects(finishedWork);
@@ -3131,10 +3155,11 @@ function commitMutationEffectsOnFiber(
         }
 
         // Offscreen with manual mode manages visibility manually.
-        if (supportsMutation && !isOffscreenManual(finishedWork)) {
+        if (supportsMutation && !isOffscreenManual(finishedWork)) { // +++
           // TODO: This needs to run whenever there's an insertion or update
           // inside a hidden Offscreen tree.
-          hideOrUnhideAllChildren(offscreenBoundary, isHidden);
+          hideOrUnhideAllChildren(offscreenBoundary, isHidden); // ++++++
+          // 隐藏或取消隐藏所有的孩子 // ++++++
         }
       }
 

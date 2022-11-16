@@ -32,7 +32,7 @@ import {
   isValidElement,
 } from './ReactElement';
 import {createContext} from './ReactContext';
-import {lazy} from './ReactLazy';
+import {lazy} from './ReactLazy'; // +++
 import {forwardRef} from './ReactForwardRef'; // +++
 import {memo} from './ReactMemo'; // +++
 import {cache} from './ReactCache';
@@ -99,7 +99,7 @@ export {
   createContext,
   createServerContext,
   forwardRef, // +++
-  lazy,
+  lazy, // lazy函数 // +++
   memo, // +++
   cache,
   useCallback,
@@ -120,7 +120,7 @@ export {
   REACT_PROFILER_TYPE as Profiler,
   REACT_STRICT_MODE_TYPE as StrictMode,
   REACT_DEBUG_TRACING_MODE_TYPE as unstable_DebugTracingMode,
-  REACT_SUSPENSE_TYPE as Suspense,
+  REACT_SUSPENSE_TYPE as Suspense, // 直接就是一个Symbol值 // +++
   createElement,
   cloneElement,
   isValidElement,

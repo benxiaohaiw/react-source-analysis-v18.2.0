@@ -55,6 +55,7 @@ function shouldAvoidedBoundaryCapture(
   return false;
 }
 
+// +++
 export function pushPrimaryTreeSuspenseHandler(handler: Fiber): void {
   const props = handler.pendingProps;
   const handlerOnStack = suspenseHandlerStackCursor.current;
@@ -69,7 +70,7 @@ export function pushPrimaryTreeSuspenseHandler(handler: Fiber): void {
     push(suspenseHandlerStackCursor, handlerOnStack, handler);
   } else {
     // Push this handler onto the stack.
-    push(suspenseHandlerStackCursor, handler, handler);
+    push(suspenseHandlerStackCursor, handler, handler); // +++
   }
 }
 
@@ -108,18 +109,20 @@ export opaque type SuspenseContext = number;
 export opaque type SubtreeSuspenseContext: SuspenseContext = number;
 export opaque type ShallowSuspenseContext: SuspenseContext = number;
 
-const DefaultSuspenseContext: SuspenseContext = 0b00;
+const DefaultSuspenseContext: SuspenseContext = 0b00; // +++
 
 const SubtreeSuspenseContextMask: SuspenseContext = 0b01;
 
 // ForceSuspenseFallback can be used by SuspenseList to force newly added
 // items into their fallback state during one of the render passes.
-export const ForceSuspenseFallback: ShallowSuspenseContext = 0b10;
+export const ForceSuspenseFallback: ShallowSuspenseContext = 0b10; // +++
 
+// +++
 export const suspenseStackCursor: StackCursor<SuspenseContext> = createCursor(
   DefaultSuspenseContext,
 );
 
+// 是否有suspense列表上下文 // +++
 export function hasSuspenseListContext(
   parentContext: SuspenseContext,
   flag: SuspenseContext,

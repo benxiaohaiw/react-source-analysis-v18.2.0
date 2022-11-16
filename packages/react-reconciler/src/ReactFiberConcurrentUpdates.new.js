@@ -231,12 +231,18 @@ export function enqueueConcurrentClassUpdate<State>(
   return getRootForUpdatedFiber(fiber); // 返回FiberRootNode
 }
 
+// 为lane入队列并发渲染 // +++
 export function enqueueConcurrentRenderForLane(
   fiber: Fiber,
   lane: Lane,
 ): FiberRoot | null {
+
+  // +++
+  // 入队列更新 // +++
   enqueueUpdate(fiber, null, null, lane);
-  return getRootForUpdatedFiber(fiber);
+
+  // +++
+  return getRootForUpdatedFiber(fiber); // +++
 }
 
 // Calling this function outside this module should only be done for backwards

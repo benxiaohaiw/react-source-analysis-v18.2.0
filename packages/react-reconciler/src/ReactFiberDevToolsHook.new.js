@@ -414,6 +414,7 @@ export function markComponentErrored(
   }
 }
 
+// +++
 export function markComponentSuspended(
   fiber: Fiber,
   wakeable: Wakeable,

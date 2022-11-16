@@ -722,6 +722,7 @@ export function requestUpdateLane(fiber: Fiber): Lane { // 请求更新车道 //
 }
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+// 请求尝试车道 // +++
 function requestRetryLane(fiber: Fiber) {
   // This is a fork of `requestUpdateLane` designed specifically for Suspense
   // "retries" — a special update that attempts to flip a Suspense boundary
@@ -733,7 +734,9 @@ function requestRetryLane(fiber: Fiber) {
     return (SyncLane: Lane);
   }
 
-  return claimNextRetryLane();
+  // +++
+  return claimNextRetryLane(); // +++
+  // RetryLane1: 4194304
 }
 
 // 在fiber上调度更新 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1996,6 +1999,7 @@ function prepareFreshStack(root: FiberRoot, lanes: Lanes): Fiber { // ++++++++++
   return rootWorkInProgress;
 }
 
+// 处理throw // +++
 function handleThrow(root, thrownValue): void {
   // Reset module-level state that was set during the render phase.
   resetContextDependencies();
@@ -2009,8 +2013,13 @@ function handleThrow(root, thrownValue): void {
   // of entering the begin phase. It's called "suspended" because it usually
   // happens because of Suspense, but it also applies to errors. Think of it
   // as suspending the execution of the work loop.
-  workInProgressIsSuspended = true;
-  workInProgressThrownValue = thrownValue;
+  
+  // 标记 // +++
+  workInProgressIsSuspended = true; // +++
+  workInProgressThrownValue = thrownValue; // +++ // promise值 // +++
+  // 在workLoopSync中起作用了 // +++
+
+  // null
   workInProgressSuspendedThenableState = getThenableStateAfterSuspending();
 
   const erroredWork = workInProgress;
@@ -2033,14 +2042,19 @@ function handleThrow(root, thrownValue): void {
     if (
       thrownValue !== null &&
       typeof thrownValue === 'object' &&
-      typeof thrownValue.then === 'function'
+      typeof thrownValue.then === 'function' // promise值 // +++
     ) {
       const wakeable: Wakeable = (thrownValue: any);
+
+      // 标记组件已挂起
+      // 实际上什么事情也没有做 // +++
       markComponentSuspended(
         erroredWork,
         wakeable,
         workInProgressRootRenderLanes,
       );
+      // 于是就回到了workLoopSync中了 ~ // +++
+
     } else {
       markComponentErrored(
         erroredWork,
@@ -2206,8 +2220,11 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
       // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       workLoopSync(); // 同步工作循环 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       break; // 退出循环 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    } catch (thrownValue) {
-      handleThrow(root, thrownValue);
+    } catch (thrownValue) { // promise值
+      // +++
+      handleThrow(root, thrownValue); // +++
+      // 回到了workLoopSync中了  // +++
+
     }
   } while (true);
 
@@ -2257,14 +2274,33 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
 function workLoopSync() { // 同步工作循环 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // Perform work without checking if we need to yield between fiber.
 
+
+  // 在handleThrow中进行标记为true的 // +++
   if (workInProgressIsSuspended) {
     // The current work-in-progress was already attempted. We need to unwind
     // it before we continue the normal work loop.
-    const thrownValue = workInProgressThrownValue;
+    const thrownValue = workInProgressThrownValue; // 那个promise值 // +++
+
+    // 随后重置状态 // +++
     workInProgressIsSuspended = false;
     workInProgressThrownValue = null;
+    // +++
+
+
+    // 当前wip应该是tag为LazyComponent的fiber
     if (workInProgress !== null) {
-      resumeSuspendedUnitOfWork(workInProgress, thrownValue);
+
+      // +++
+      resumeSuspendedUnitOfWork(workInProgress, thrownValue); // 恢复挂起工作单元 // +++
+      /* 
+        主要做的事情就是从LazyComponent一直return -> SuspenseComponent
+        // 把workInProgress变为这个SuspenseComponent
+        // 然后还把这个SuspenseComponent的flags或上了DidCapture // +++
+
+        那么在beginWork中会再一次进入updateSuspenseComponent中
+        // 但是这一次不一样了 // +++
+      */
+      // 还有几点重要的可以到此方法中去查看详细内容 // +++
     }
   }
 
@@ -2457,6 +2493,7 @@ function performUnitOfWork(unitOfWork: Fiber): void {
   ReactCurrentOwner.current = null;
 }
 
+// 恢复挂起工作单元 // +++
 function resumeSuspendedUnitOfWork(
   unitOfWork: Fiber,
   thrownValue: mixed,
@@ -2467,9 +2504,10 @@ function resumeSuspendedUnitOfWork(
   // additional logic out of the work loop's hot path.
 
   const wasPinged =
-    workInProgressSuspendedThenableState !== null &&
+    workInProgressSuspendedThenableState !== null && // 在handleThrow中获取的是一个null // +++
     isThenableStateResolved(workInProgressSuspendedThenableState);
 
+  // !false
   if (!wasPinged) {
     // The thenable wasn't pinged. Return to the normal work loop. This will
     // unwind the stack, and potentially result in showing a fallback.
@@ -2494,15 +2532,24 @@ function resumeSuspendedUnitOfWork(
     }
 
     try {
+      
+      
       // Find and mark the nearest Suspense or error boundary that can handle
       // this "exception".
-      throwException(
+      throwException( // 抛出异常 // +++
         workInProgressRoot,
-        returnFiber,
-        unitOfWork,
-        thrownValue,
+        returnFiber, // OffscreenComponent
+        unitOfWork, // LazyComponent
+        thrownValue, // promise值
         workInProgressRootRenderLanes,
       );
+      // +++
+      /* 
+      标记LazyComponent的flags加上Incomplete
+      然后找到SuspenseComponent的updateQueue中置为一个set，里面的元素为promise值 // +++
+      */
+      // +++
+
     } catch (error) {
       // We had trouble processing the error. An example of this happening is
       // when accessing the `componentDidCatch` property of an error boundary
@@ -2512,9 +2559,17 @@ function resumeSuspendedUnitOfWork(
       throw error;
     }
 
+    // 返回到这个正常的工作循环中 // +++
     // Return to the normal work loop.
-    completeUnitOfWork(unitOfWork);
-    return;
+    completeUnitOfWork(unitOfWork); // tag为LazyComponent的wip fiber // +++
+    /* 
+    主要做的事情就是从LazyComponent一直return -> SuspenseComponent
+    // 把workInProgress变为这个SuspenseComponent
+    // 然后还把这个SuspenseComponent的flags或上了DidCapture // +++
+    */
+
+    // 返回 // +++
+    return; // ++++++
   }
 
   // The work-in-progress was immediately pinged. Instead of unwinding the
@@ -2556,7 +2611,7 @@ export function getSuspendedThenableState(): ThenableState | null {
   return workInProgressSuspendedThenableState;
 }
 
-// 完成工作单元
+// 完成工作单元 // +++
 function completeUnitOfWork(unitOfWork: Fiber): void {
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // 尝试完成当前的工作单元，然后转移到下一个同级兄弟工作单元。如果没有更多的兄弟节点，则返回到父fiber。 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++==+++++++++
@@ -2583,7 +2638,7 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
 
     // 检查工作是否完成或是否有东西已throw了。
     // Check if the work completed or if something threw.
-    if ((completedWork.flags & Incomplete) === NoFlags) {
+    if ((completedWork.flags & Incomplete) === NoFlags) { // 在resumeSuspendedUnitOfWork函数中进入到的当前函数中对于wip为LazyComponent的fiber，它们的标记是没有被完成的 -> false（【这个是在throwException中做的直接把LazyComponent中的flags加上InComplete标记的】） +++
       setCurrentDebugFiberInDEV(completedWork);
       let next;
       if (
@@ -2613,18 +2668,25 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
       // This fiber did not complete because something threw. Pop values off
       // the stack without entering the complete phase. If this is a boundary,
       // capture values if possible.
-      const next = unwindWork(current, completedWork, renderLanes);
+
+      // 放松工作 // +++
+      const next = unwindWork(current, completedWork, renderLanes); // +++
+      /* 
+      LazyComponent -> null -> return: OffScreenComponent -> null -> return: SuspenseComponent -> SuspenseComponent
+      */
 
       // Because this fiber did not complete, don't reset its lanes.
+
+      // +++
 
       if (next !== null) {
         // If completing this work spawned new work, do that next. We'll come
         // back here again.
         // Since we're restarting, remove anything that is not a host effect
         // from the effect tag.
-        next.flags &= HostEffectMask;
-        workInProgress = next;
-        return;
+        next.flags &= HostEffectMask; // +++
+        workInProgress = next; // +++ wip变为SuspenseComponent
+        return; // 返回 // +++
       }
 
       if (
@@ -2647,7 +2709,7 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
 
       if (returnFiber !== null) {
         // Mark the parent fiber as incomplete and clear its subtree flags.
-        returnFiber.flags |= Incomplete;
+        returnFiber.flags |= Incomplete; // +++ // 对returnFiber加上InComplete的标记 // +++
         returnFiber.subtreeFlags = NoFlags;
         returnFiber.deletions = null;
       } else {
@@ -3858,22 +3920,49 @@ function pingSuspendedRoot(
   ensureRootIsScheduled(root, eventTime);
 }
 
-function retryTimedOutBoundary(boundaryFiber: Fiber, retryLane: Lane) {
+// ++++++
+function retryTimedOutBoundary(boundaryFiber: Fiber, retryLane: Lane) { // suspense fiber, 0
   // The boundary fiber (a Suspense component or SuspenseList component)
   // previously was rendered in its fallback state. One of the promises that
   // suspended it has resolved, which means at least part of the tree was
   // likely unblocked. Try rendering again, at a new lanes.
-  if (retryLane === NoLane) {
+  if (retryLane === NoLane) { // true // +++
     // TODO: Assign this to `suspenseState.retryLane`? to avoid
     // unnecessary entanglement?
-    retryLane = requestRetryLane(boundaryFiber);
+    retryLane = requestRetryLane(boundaryFiber); // 请求retryLane // ++++++
+    // ++++++
+    // RetryLane1: 4194304
   }
   // TODO: Special case idle priority?
   const eventTime = requestEventTime();
-  const root = enqueueConcurrentRenderForLane(boundaryFiber, retryLane);
+
+  const root = enqueueConcurrentRenderForLane(boundaryFiber, retryLane); // 为lane入队列并发渲染 // ++++++
+  // 返回FiberRootNode // +++
+
+
   if (root !== null) {
-    markRootUpdated(root, retryLane, eventTime);
-    ensureRootIsScheduled(root, eventTime);
+
+    // +++
+    markRootUpdated(root, retryLane, eventTime); // ++++++
+    // packages/react-reconciler/src/ReactFiberLane.new.js
+    //   ...
+    //   root.pendingLanes |= retryLane;
+    //   ...
+
+    // ++++++
+    // 再一次确保root是被调度的 // +++
+    ensureRootIsScheduled(root, eventTime); // ++++++
+    // +++
+    // 注意：对于初次挂载情况如果到了这里那么此时的current已经切换为了右树了 // 所以这一次的ensureRootIsScheduled函数将操作的wip是左树 // +++
+    //   getNextLanes的结果为4194304
+    //   getHighestPriorityLane的结果为4194304
+    //   lanesToEventPriority(nextLanes)的结果为DefaultEventPriority那么将导致schedulerPriorityLevel为NormalPriority
+    //   然后将使用scheduleCallback调度performConcurrentWorkOnRoot - 调度优先级为NormalPriority
+    // 那么之后在performConcurrentWorkOnRoot中的getNextLanes的结果还是4194304
+    //   shouldTimeSlice为true
+    //   那么则使用renderRootConcurrent
+    //   之后就是熟悉的beginWork -> completeWork -> commitRootImpl
+    //   ...
   }
 }
 
@@ -3886,11 +3975,12 @@ export function retryDehydratedSuspenseBoundary(boundaryFiber: Fiber) {
   retryTimedOutBoundary(boundaryFiber, retryLane);
 }
 
+// +++
 export function resolveRetryWakeable(boundaryFiber: Fiber, wakeable: Wakeable) {
   let retryLane = NoLane; // Default
   let retryCache: WeakSet<Wakeable> | Set<Wakeable> | null;
   switch (boundaryFiber.tag) {
-    case SuspenseComponent:
+    case SuspenseComponent: // +++
       retryCache = boundaryFiber.stateNode;
       const suspenseState: null | SuspenseState = boundaryFiber.memoizedState;
       if (suspenseState !== null) {
@@ -3919,7 +4009,8 @@ export function resolveRetryWakeable(boundaryFiber: Fiber, wakeable: Wakeable) {
     retryCache.delete(wakeable);
   }
 
-  retryTimedOutBoundary(boundaryFiber, retryLane);
+  // ++++++
+  retryTimedOutBoundary(boundaryFiber, retryLane); // ++++++
 }
 
 // Computes the next Just Noticeable Difference (JND) boundary.
@@ -4203,7 +4294,7 @@ let beginWork; // 开始工作
 if (__DEV__ && replayFailedUnitOfWorkWithInvokeGuardedCallback) {
   const dummyFiber = null;
   // 开发模式下仅仅只是对originalBeginWork这个函数包装一层 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  beginWork = (current, unitOfWork, lanes) => {
+  beginWork = (current, unitOfWork, lanes) => { // +++
     // If a component throws an error, we replay it again in a synchronously
     // dispatched event, so that the debugger will treat it as an uncaught
     // error See ReactErrorUtils for more information.
@@ -4217,16 +4308,17 @@ if (__DEV__ && replayFailedUnitOfWorkWithInvokeGuardedCallback) {
     try {
       return originalBeginWork(current, unitOfWork, lanes); // 执行originalBeginWork函数
       // 它是在./ReactFiberBeginWork.new.js下
-    } catch (originalError) {
+    } catch (originalError) { // +++
       if (
         didSuspendOrErrorWhileHydratingDEV() ||
         (originalError !== null &&
           typeof originalError === 'object' &&
-          typeof originalError.then === 'function')
+          typeof originalError.then === 'function') // promise
       ) {
         // Don't replay promises.
         // Don't replay errors if we are hydrating and have already suspended or handled an error
-        throw originalError;
+        throw originalError; // +++
+        // +++继续抛出 // +++
       }
 
       // Keep this code in sync with handleThrow; any changes here must have
@@ -4277,8 +4369,10 @@ if (__DEV__ && replayFailedUnitOfWorkWithInvokeGuardedCallback) {
     }
   };
 } else {
+  // +++
   // ./ReactFiberBeginWork.new.js下的函数
   beginWork = originalBeginWork; // 生成模式下直接是这个originalBeginWork函数 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++
 }
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

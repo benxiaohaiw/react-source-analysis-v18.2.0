@@ -63,19 +63,19 @@ function pop<T>(cursor: StackCursor<T>, fiber: Fiber): void {
   index--;
 }
 
-// push方法
+// push方法 // +++
 function push<T>(cursor: StackCursor<T>, value: T, fiber: Fiber): void {
   index++;
 
   // 值栈 - 存之前的值 // +++
-  valueStack[index] = cursor.current;
+  valueStack[index] = cursor.current; // +++
 
   if (__DEV__) {
     fiberStack[index] = fiber;
   }
 
   // 存入新的value值 // +++
-  cursor.current = value;
+  cursor.current = value; // +++
 }
 
 function checkThatStackIsEmpty() {

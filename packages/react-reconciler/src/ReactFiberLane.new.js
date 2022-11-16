@@ -68,9 +68,9 @@ const TransitionLane14: Lane = /*                       */ 0b0000000000010000000
 const TransitionLane15: Lane = /*                       */ 0b0000000000100000000000000000000;
 const TransitionLane16: Lane = /*                       */ 0b0000000001000000000000000000000;
 
-const RetryLanes: Lanes = /*                            */ 0b0000111110000000000000000000000;
-const RetryLane1: Lane = /*                             */ 0b0000000010000000000000000000000;
-const RetryLane2: Lane = /*                             */ 0b0000000100000000000000000000000;
+const RetryLanes: Lanes = /*                            */ 0b0000111110000000000000000000000; // +++
+const RetryLane1: Lane = /*                             */ 0b0000000010000000000000000000000; // +++
+const RetryLane2: Lane = /*                             */ 0b0000000100000000000000000000000; // +++
 const RetryLane3: Lane = /*                             */ 0b0000001000000000000000000000000;
 const RetryLane4: Lane = /*                             */ 0b0000010000000000000000000000000;
 const RetryLane5: Lane = /*                             */ 0b0000100000000000000000000000000;
@@ -549,13 +549,18 @@ export function claimNextTransitionLane(): Lane { // +++++++++++++++++++++++++++
   return lane; // TransitionLane1 64
 }
 
+// 要求下一个retry车道 // +++
 export function claimNextRetryLane(): Lane {
-  const lane = nextRetryLane;
-  nextRetryLane <<= 1;
-  if ((nextRetryLane & RetryLanes) === NoLanes) {
+  const lane = nextRetryLane; // nextRetryLane默认是RetryLane1
+
+  nextRetryLane <<= 1; // 左移 - 变为RetryLane2
+  
+  if ((nextRetryLane & RetryLanes) === NoLanes) { // 若左移之后不再属于RetryLanes了则回归默认值边界RetryLane1
     nextRetryLane = RetryLane1;
   }
-  return lane;
+
+  // 返回这个车道
+  return lane; // RetryLane1
 }
 
 // 获取最高优先级车道
@@ -630,6 +635,8 @@ export function markRootUpdated(
   updateLane: Lane,
   eventTime: number,
 ) {
+
+  // +++
   root.pendingLanes |= updateLane; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // If there are any suspended transitions, it's possible this new update
