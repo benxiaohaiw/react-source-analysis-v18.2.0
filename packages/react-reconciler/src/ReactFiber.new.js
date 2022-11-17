@@ -265,9 +265,10 @@ export function resolveLazyComponentTag(Component: Function): WorkTag {
 // This is used to create an alternate fiber to do work on.
 export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  // 获取current.alternate属性
+  // 获取current.alternate属性 // +++
   let workInProgress = current.alternate; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   
+  // +++
   if (workInProgress === null) { // 是null的话直接根据current创建一个新的fiber
 
     // We use a double buffering pooling technique because we know that we'll
@@ -275,15 +276,18 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
     // node that we're free to reuse. This is lazily created to avoid allocating
     // extra objects for things that are never updated. It also allow us to
     // reclaim the extra memory if needed.
-    workInProgress = createFiber( // 创建fiber
-      current.tag,
+    workInProgress = createFiber( // 创建fiber // +++
+      current.tag, // +++
       pendingProps, // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       current.key,
       current.mode,
     );
+
+    // +++
     workInProgress.elementType = current.elementType;
     workInProgress.type = current.type;
     workInProgress.stateNode = current.stateNode;
+    // +++
 
     if (__DEV__) {
       // DEV-only fields
@@ -296,10 +300,12 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++===
     // 相互指向通过各自的alternate属性
     // 建立关系 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    workInProgress.alternate = current;
-    current.alternate = workInProgress;
+    workInProgress.alternate = current; // +++
+    current.alternate = workInProgress; // +++
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   } else { // 不是null的话直接采用这个，但是这里更新一些属性
+
+    // +++
     workInProgress.pendingProps = pendingProps; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Needed because Blocks store data on type.
     workInProgress.type = current.type;
@@ -312,7 +318,8 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
 
     // The effects are no longer valid.
     workInProgress.subtreeFlags = NoFlags; // 子树标记 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    workInProgress.deletions = null;
+    workInProgress.deletions = null; // +++
+    // +++
 
     if (enableProfilerTimer) {
       // We intentionally reset, rather than copy, actualDuration & actualStartTime.
@@ -340,14 +347,17 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
   workInProgress.child = current.child; // +++++++++++++++++++++++++++++++++++++++++++++++++++++
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+  // +++
   workInProgress.memoizedProps = current.memoizedProps;
   workInProgress.memoizedState = current.memoizedState;
   workInProgress.updateQueue = current.updateQueue;
+  // +++
 
+  // +++
   // Clone the dependencies object. This is mutated during the render phase, so
   // it cannot be shared with the current fiber.
-  const currentDependencies = current.dependencies;
-  // 浅克隆current.dependencies // +++
+  const currentDependencies = current.dependencies; // +++
+  // 【浅克隆】current.dependencies // +++
   workInProgress.dependencies =
     currentDependencies === null
       ? null
@@ -356,11 +366,15 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
           lanes: currentDependencies.lanes,
           firstContext: currentDependencies.firstContext,
         };
+  // +++
+  // +++
 
+  /// +++
   // These will be overridden during the parent's reconciliation
   workInProgress.sibling = current.sibling;
   workInProgress.index = current.index;
   workInProgress.ref = current.ref;
+  // +++
 
   if (enableProfilerTimer) {
     workInProgress.selfBaseDuration = current.selfBaseDuration;
@@ -386,7 +400,8 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
     }
   }
 
-  return workInProgress;
+  // +++
+  return workInProgress; // +++
 }
 
 // Used to reuse a Fiber for a second pass.

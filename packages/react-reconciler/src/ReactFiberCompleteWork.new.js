@@ -1296,7 +1296,9 @@ function markUpdate(workInProgress: Fiber) {
     // +++
     case SuspenseComponent: { // +++
       popSuspenseHandler(workInProgress);
-      const nextState: null | SuspenseState = workInProgress.memoizedState;
+
+      // +++
+      const nextState: null | SuspenseState = workInProgress.memoizedState; // ++++++
 
       // Special path for dehydrated boundaries. We may eventually move this
       // to its own fiber type so that we can add other kinds of hydration
@@ -1343,10 +1345,14 @@ function markUpdate(workInProgress: Fiber) {
       }
 
       // +++
+      // ++++++
       const nextDidTimeout = nextState !== null; // +++
+
+      // ++++++
       const prevDidTimeout =
         current !== null &&
-        (current.memoizedState: null | SuspenseState) !== null;
+        (current.memoizedState: null | SuspenseState) !== null; // +++
+      // ++++++
 
       if (enableCache && nextDidTimeout) {
         const offscreenFiber: Fiber = (workInProgress.child: any);
@@ -1371,9 +1377,10 @@ function markUpdate(workInProgress: Fiber) {
         }
       }
 
+      // ++++++
       // If the suspended state of the boundary changes, we need to schedule
       // a passive effect, which is when we process the transitions
-      if (nextDidTimeout !== prevDidTimeout) { // true
+      if (nextDidTimeout !== prevDidTimeout) { // true // ++++++
         if (enableTransitionTracing) {
           const offscreenFiber: Fiber = (workInProgress.child: any);
           offscreenFiber.flags |= Passive;
@@ -1390,14 +1397,19 @@ function markUpdate(workInProgress: Fiber) {
         // logic applies: when re-connecting, the Offscreen fiber's complete
         // phase will handle scheduling the effect. It's only when the fallback
         // is active that we have to do anything special.
-        if (nextDidTimeout) { // +++
-          const offscreenFiber: Fiber = (workInProgress.child: any);
+        // ++++++
+        if (nextDidTimeout) { // +++ // +++
+
+          const offscreenFiber: Fiber = (workInProgress.child: any); // +++
+
+          // ++++++
           offscreenFiber.flags |= Visibility; // 给OffscreenComponent的flags加上Visibility这个标记 // ++++++
 
           // TODO: This will still suspend a synchronous tree if anything
           // in the concurrent tree already suspended during this render.
           // This is a known bug.
-          if ((workInProgress.mode & ConcurrentMode) !== NoMode) {
+          // +++
+          if ((workInProgress.mode & ConcurrentMode) !== NoMode) { // ++++++
             // TODO: Move this back to throwException because this is too late
             // if this is a large tree which is common for initial loads. We
             // don't know if we should restart a render or not until we get
@@ -1410,30 +1422,41 @@ function markUpdate(workInProgress: Fiber) {
             // fallback state is one that we only show as a last resort; if this
             // is a transition, we'll block it from displaying, and wait for
             // more data to arrive.
+
+            // ++++++
             const isBadFallback =
+              // ++++++
               // It's bad to switch to a fallback if content is already visible
-              (current !== null && !prevDidTimeout && !isCurrentTreeHidden()) ||
+              (current !== null && !prevDidTimeout && !isCurrentTreeHidden()) || // ++++++
+
               // Experimental: Some fallbacks are always bad
               (enableSuspenseAvoidThisFallback &&
                 workInProgress.memoizedProps.unstable_avoidThisFallback ===
                   true);
+            // +++
 
-            if (isBadFallback) {
-              renderDidSuspendDelayIfPossible();
+            // +++
+            if (isBadFallback) { // ++++++
+              // +++
+              renderDidSuspendDelayIfPossible(); // ++++++
+              // ./ReactFiberWorkLoop.new.js
             } else {
-              renderDidSuspend();
+              // +++
+              renderDidSuspend(); // +++
             }
           }
         }
       }
 
       // 这个是在workLoopSync -> resumeSuspendedUnitOfWork -> throwException中做的事情 // +++
-      const wakeables: Set<Wakeable> | null = (workInProgress.updateQueue: any);
+      const wakeables: Set<Wakeable> | null = (workInProgress.updateQueue: any); // +++
       if (wakeables !== null) {
         // Schedule an effect to attach a retry listener to the promise.
         // TODO: Move to passive phase
+        // +++
         workInProgress.flags |= Update; // 给SuspenseComponent的flags加上Update这个标记 // ++++++
       }
+      // +++
 
       if (
         enableSuspenseCallback &&
@@ -1461,6 +1484,8 @@ function markUpdate(workInProgress: Fiber) {
           }
         }
       }
+
+      // +++
       return null;
     }
 
@@ -1747,7 +1772,7 @@ function markUpdate(workInProgress: Fiber) {
     case LegacyHiddenComponent: {
       popSuspenseHandler(workInProgress);
       popHiddenContext(workInProgress);
-      const nextState: OffscreenState | null = workInProgress.memoizedState;
+      const nextState: OffscreenState | null = workInProgress.memoizedState; // +++
       /* 
       packages/react-reconciler/src/ReactFiberBeginWork.new.js
 
@@ -1760,33 +1785,41 @@ function mountSuspenseOffscreenState(renderLanes: Lanes): OffscreenState {
 }
       */
 
-      const nextIsHidden = nextState !== null;
+      const nextIsHidden = nextState !== null; // +++
 
       // Schedule a Visibility effect if the visibility has changed
       if (enableLegacyHidden && workInProgress.tag === LegacyHiddenComponent) {
         // LegacyHidden doesn't do any hiding — it only pre-renders.
       } else {
-        if (current !== null) {
+        if (current !== null) { // +++
+
+          // +++
           const prevState: OffscreenState | null = current.memoizedState;
           const prevIsHidden = prevState !== null;
           if (prevIsHidden !== nextIsHidden) {
-            workInProgress.flags |= Visibility;
+            workInProgress.flags |= Visibility; // +++
           }
+          // +++
+
         } else { // +++
 
           // ++++++
 
+          // +++
           // On initial mount, we only need a Visibility effect if the tree
           // is hidden.
           if (nextIsHidden) { // 给这个OffscreenComponent的flags加上Visibility这个标记 // +++
             workInProgress.flags |= Visibility; // +++
           }
+          // +++
         }
       }
 
       if (!nextIsHidden || (workInProgress.mode & ConcurrentMode) === NoMode) {
-        bubbleProperties(workInProgress);
+        bubbleProperties(workInProgress); // +++
       } else {
+
+        // +++
         // Don't bubble properties for hidden children unless we're rendering
         // at offscreen priority.
         if (
@@ -1794,7 +1827,7 @@ function mountSuspenseOffscreenState(renderLanes: Lanes): OffscreenState {
           // Also don't bubble if the tree suspended
           (workInProgress.flags & DidCapture) === NoLanes
         ) {
-          bubbleProperties(workInProgress);
+          bubbleProperties(workInProgress); // +++
           // Check if there was an insertion or update in the hidden subtree.
           // If so, we need to hide those nodes in the commit phase, so
           // schedule a visibility effect.
@@ -1803,15 +1836,18 @@ function mountSuspenseOffscreenState(renderLanes: Lanes): OffscreenState {
               workInProgress.tag !== LegacyHiddenComponent) &&
             workInProgress.subtreeFlags & (Placement | Update)
           ) {
-            workInProgress.flags |= Visibility;
+            workInProgress.flags |= Visibility; // +++
           }
         }
+        // +++
+
       }
 
+      // +++
       if (workInProgress.updateQueue !== null) {
         // Schedule an effect to attach Suspense retry listeners
         // TODO: Move to passive phase
-        workInProgress.flags |= Update;
+        workInProgress.flags |= Update; // +++
       }
 
       if (enableCache) {
@@ -1838,6 +1874,7 @@ function mountSuspenseOffscreenState(renderLanes: Lanes): OffscreenState {
 
       popTransition(workInProgress, current);
 
+      // +++
       return null;
     }
     case CacheComponent: {

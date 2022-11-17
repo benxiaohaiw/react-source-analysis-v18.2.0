@@ -271,10 +271,12 @@ function warnOnFunctionType(returnFiber: Fiber) {
   }
 }
 
-function resolveLazy(lazyType) {
+// +++
+function resolveLazy(lazyType) { // +++
   const payload = lazyType._payload;
   const init = lazyType._init;
-  return init(payload);
+  // 执行这个init函数 // ++++++
+  return init(payload); // +++
 }
 
 type ChildReconciler = (
@@ -1543,21 +1545,22 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
   }
 
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  function reconcileSingleElement(
+  function reconcileSingleElement( // +++
     returnFiber: Fiber,
     currentFirstChild: Fiber | null,
     element: ReactElement,
     lanes: Lanes,
   ): Fiber {
     const key = element.key; // 取出vnode上的key属性
-    let child = currentFirstChild; // current.child
+    let child = currentFirstChild; // current.child // +++
 
+    // +++
     // 注意：这里循环的是current的child // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     while (child !== null) { // while循环 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // TODO: If key === null and child.key === null, then this only applies to
       // the first item in the list.
-      if (child.key === key) {
-        const elementType = element.type; // 取出vnode上的类型
+      if (child.key === key) { // +++
+        const elementType = element.type; // 取出vnode上的类型 // +++
         if (elementType === REACT_FRAGMENT_TYPE) {
           if (child.tag === Fragment) {
             deleteRemainingChildren(returnFiber, child.sibling);
@@ -1571,7 +1574,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
           }
         } else {
           if (
-            child.elementType === elementType || // 元素类型一致
+            child.elementType === elementType || // 元素类型一致 // +++
             // Keep this check inline so it only runs on the false path:
             (__DEV__
               ? isCompatibleFamilyForHotReloading(child, element)
@@ -1580,14 +1583,16 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
             // We need to do this after the Hot Reloading check above,
             // because hot reloading has different semantics than prod because
             // it doesn't resuspend. So we can't let the call below suspend.
-            (typeof elementType === 'object' &&
+            (typeof elementType === 'object' && // +++
               elementType !== null &&
-              elementType.$$typeof === REACT_LAZY_TYPE &&
-              resolveLazy(elementType) === child.type)
+              elementType.$$typeof === REACT_LAZY_TYPE && // +++
+              /** 重点！！！ */ resolveLazy(elementType) === child.type) // +++
           ) {
             // 删除其余的孩子
             // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // ++++++
             deleteRemainingChildren(returnFiber, child.sibling); // 【这个是child的sibling】 - （注意：但是当前函数是reconcileSingleElement，那么它以前有兄弟节点的话是要删除的）
+            // ++++++
             // 而现在是一个单节点，以前（屏幕上出现的是current）是多个那么就需要把之前的兄弟节点全部删除的，所以这里有一个这样的步骤 // +++++++++++++++++++++++++++++++++++++++++++++
             /* 
               function deleteRemainingChildren(
@@ -1632,12 +1637,14 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
               existing._debugOwner = element._owner;
             }
 
+            // +++
             return existing; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
           }
         }
 
         // 不匹配。
         // Didn't match.
+        // ++++++
         deleteRemainingChildren(returnFiber, child); // 这个是child // ++++++++++++++++++++++++++++
         break; // 退出while循环 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       } else {
@@ -1677,6 +1684,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
       // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
       // ./ReactFiber.new.js
+      // ++++++
       const created = createFiberFromElement(element, returnFiber.mode, lanes); // 从元素创建fiber
 
       // 对于函数式组件中使用useRef来讲 - <div ref={myRef}></div>
@@ -1796,17 +1804,18 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
 
     // 处理对象类型 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Handle object types
-    if (typeof newChild === 'object' && newChild !== null) {
-      switch (newChild.$$typeof) {
+    if (typeof newChild === 'object' && newChild !== null) { // +++
+      switch (newChild.$$typeof) { // +++
         // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         case REACT_ELEMENT_TYPE: // App | button
           return placeSingleChild( // 重点+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+            // +++
             reconcileSingleElement( // 重点++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
               returnFiber,
               currentFirstChild,
               newChild,
               lanes,
-            ),
+            ), // +++
           );
         /* 
         createPortal api返回的对象
@@ -1850,6 +1859,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
           );
       }
 
+      // +++
       // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       if (isArray(newChild)) { // ['count is ', 0]
         // 注意：没有placeSingleChild方法的执行的 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1861,6 +1871,7 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
         ); // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       }
 
+      // +++
       if (getIteratorFn(newChild)) {
         return reconcileChildrenIterator(
           returnFiber,
@@ -1870,9 +1881,11 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
         );
       }
 
+      // +++
       throwOnInvalidObjectType(returnFiber, newChild);
     }
 
+    // +++
     if (
       (typeof newChild === 'string' && newChild !== '') ||
       typeof newChild === 'number'
@@ -1887,12 +1900,14 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
       );
     }
 
+    // +++
     if (__DEV__) {
       if (typeof newChild === 'function') {
         warnOnFunctionType(returnFiber);
       }
     }
 
+    // +++
     // 其余的案例都被视为空。 // ++++++++++++++++++++++++++++++++++++++++++++++
     // Remaining cases are all treated as empty.
     return deleteRemainingChildren(returnFiber, currentFirstChild);
@@ -1901,10 +1916,13 @@ function createChildReconciler(shouldTrackSideEffects): ChildReconciler { // +++
   return reconcileChildFibers; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
+// +++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export const reconcileChildFibers: ChildReconciler = createChildReconciler(
   true, // 传入true参数 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 );
+
+// +++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export const mountChildFibers: ChildReconciler = createChildReconciler(false); // 传入false // +++++++++++++++++++++++++++++++++++

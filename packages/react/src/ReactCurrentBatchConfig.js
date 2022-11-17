@@ -17,7 +17,7 @@ type BatchConfig = {
  * should suspend for if it needs to.
  */
 const ReactCurrentBatchConfig: BatchConfig = {
-  transition: null,
+  transition: null, // null // +++
 };
 
-export default ReactCurrentBatchConfig;
+export default ReactCurrentBatchConfig; // 导出这个对象 // +++

@@ -599,6 +599,7 @@ export function getCurrentTime(): number {
   return now();
 }
 
+// +++
 // 请求更新车道 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function requestUpdateLane(fiber: Fiber): Lane { // 请求更新车道 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // updateContainer中的FiberRootNode的FiberNode举例 // 它的mode为1也就是ConcurrentMode
@@ -631,7 +632,7 @@ export function requestUpdateLane(fiber: Fiber): Lane { // 请求更新车道 //
   }
 
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  // {} !== null -> true
+  // {} !== null -> true // +++
   const isTransition = requestCurrentTransition() !== NoTransition; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   if (isTransition) { // true
     if (__DEV__ && ReactCurrentBatchConfig.transition !== null) {
@@ -1209,6 +1210,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) { // FiberRootNode 是否
 
   
   // 退出状态不是 RootInProgress
+  // +++
   if (exitStatus !== RootInProgress) { // 0 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     if (exitStatus === RootErrored) { // 2
       // If something threw an error, try rendering one more time. We'll
@@ -1309,6 +1311,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) { // FiberRootNode 是否
       +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++==
       */
       
+      // +++
       // 完成并发渲染 // +++++++++++++++++++++++++++++++++++++++++++
       // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       finishConcurrentRender(root, exitStatus, lanes); // finishConcurrentRender -> commitRoot -> commitRootImpl // ++++++++++++++++++++++++++++++++++++++++++++++
@@ -1425,8 +1428,11 @@ export function queueRecoverableErrors(errors: Array<CapturedValue<mixed>>) {
   }
 }
 
+// +++
 // 完成并发渲染 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
-function finishConcurrentRender(root, exitStatus, lanes) {
+function finishConcurrentRender(root, exitStatus, lanes) { // +++
+
+  // 对退出状态进行挑选分支逻辑 // +++
   switch (exitStatus) {
     case RootInProgress:
     case RootFatalErrored: {
@@ -1445,70 +1451,133 @@ function finishConcurrentRender(root, exitStatus, lanes) {
       );
       break;
     }
-    case RootSuspended: {
-      markRootSuspended(root, lanes);
 
+    // +++
+    // 3
+    case RootSuspended: {
+
+      // 标记root已挂起 // +++
+      markRootSuspended(root, lanes);
+      // ++++++
+
+      // 我们有一个可接受的加载状态。我们需要弄清楚是应该立即提交还是等待一段时间。 // +++
       // We have an acceptable loading state. We need to figure out if we
       // should immediately commit it or wait a bit.
 
+      // ++++++
       if (
-        includesOnlyRetries(lanes) &&
+        // 是否只包含重试车道集合 // +++
+        includesOnlyRetries(lanes) && // ++++++
+        /* 
+        // 是否只包含重试车道集合 // +++
+export function includesOnlyRetries(lanes: Lanes): boolean {
+  return (lanes & RetryLanes) === lanes; // +++
+}
+        */
+
+        // 如果我们在 act() 作用域内，请不要延迟 // +++
         // do not delay if we're inside an act() scope
         !shouldForceFlushFallbacksInDEV()
       ) {
+
+        // +++
+        // 这个渲染只包括重试，没有更新。节流提交重试，这样我们就不会过快地显示太多的加载状态。 // +++
         // This render only included retries, no updates. Throttle committing
         // retries so that we don't show too many loading states too quickly.
         const msUntilTimeout =
-          globalMostRecentFallbackTime + FALLBACK_THROTTLE_MS - now();
+          globalMostRecentFallbackTime + FALLBACK_THROTTLE_MS /** 500 */ - now(); // 准备时间 // +++
+
+        // 不要为很短的挂起时间而烦恼。
         // Don't bother with a very short suspense time.
         if (msUntilTimeout > 10) {
-          const nextLanes = getNextLanes(root, NoLanes);
+          const nextLanes = getNextLanes(root, NoLanes); // 获取下一车道集合
+          // 不是NoLanes则break
           if (nextLanes !== NoLanes) {
+            // 这个根还有额外的工作。
             // There's additional work on this root.
             break;
           }
-          const suspendedLanes = root.suspendedLanes;
+          const suspendedLanes = root.suspendedLanes; // 取出挂起车道集合 // +++
+
+          /* 
+          // 子集 // +++
+export function isSubsetOfLanes(set: Lanes, subset: Lanes | Lane): boolean {
+  return (set & subset) === subset; // +++
+}
+          */
           if (!isSubsetOfLanes(suspendedLanes, lanes)) {
+            // 我们应该倾向于在最后一个挂起的级别渲染fallback。Ping最后一个挂起的级别，尝试再次渲染它。 // +++
             // We should prefer to render the fallback of at the last
             // suspended level. Ping the last suspended level to try
             // rendering it again.
             // FIXME: What if the suspended lanes are Idle? Should not restart.
             const eventTime = requestEventTime();
+            
+            // 标记root已ping // +++
             markRootPinged(root, suspendedLanes, eventTime);
-            break;
+
+            // 退出
+            break; // +++
           }
 
+          // 渲染被挂起，它没有超时，也没有较低优先级的工作要做。不是立即提交fallback，而是等待更多的数据到达。 // +++
           // The render is suspended, it hasn't timed out, and there's no
           // lower priority work to do. Instead of committing the fallback
           // immediately, wait for more data to arrive.
-          root.timeoutHandle = scheduleTimeout(
-            commitRoot.bind(
+          root.timeoutHandle = scheduleTimeout( // 调度超时 +++
+            // 提交root - 作为超时任务 // +++
+            commitRoot.bind( // +++
               null,
               root,
               workInProgressRootRecoverableErrors,
               workInProgressTransitions,
             ),
-            msUntilTimeout,
+            // 时间
+            msUntilTimeout, // +++
           );
-          break;
+
+          // 退出
+          break; // +++
         }
       }
+
+
+      // ++++++
+      // +++
+      // +++
+      // 这个工作过期了。立即提交。 // +++
       // The work expired. Commit immediately.
       commitRoot(
         root,
         workInProgressRootRecoverableErrors,
         workInProgressTransitions,
       );
-      break;
+      // +++
+      break; // +++
     }
+
+    // +++
+    // 4
     case RootSuspendedWithDelay: {
+
+      // 标记root已挂起 // +++
       markRootSuspended(root, lanes);
 
+      // ++++++
+      // +++
+      // 是否只包含过渡车道集合 // +++
       if (includesOnlyTransitions(lanes)) {
         // This is a transition, so we should exit without committing a
         // placeholder and without scheduling a timeout. Delay indefinitely
         // until we receive more data.
-        break;
+        break; // ++++++
+        // 退出 // +++
+        // 不会进行下面的提交root逻辑的 // +++
+        // 问题的重点就是在这里出现的，也就是为什么在使用到了startTransition之后对于Suspense组件的fallback没有显示而是页面停留在旧的上面
+
+        // +++
+        // 注意：commitRoot -> commitRootImpl: root.current = finishedWork;这句代码是发生在commitRootImpl下的（要注意！！！）
+        // ++++++
       }
 
       if (!shouldForceFlushFallbacksInDEV()) {
@@ -1541,6 +1610,8 @@ function finishConcurrentRender(root, exitStatus, lanes) {
         }
       }
 
+      // 提交root // +++
+      // +++
       // Commit the placeholder.
       commitRoot(
         root,
@@ -1549,6 +1620,9 @@ function finishConcurrentRender(root, exitStatus, lanes) {
       );
       break;
     }
+
+    // ++++++
+    // 5
     case RootCompleted: { // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       // 工作完成。准备提交。
       // The work completed. Ready to commit.
@@ -1618,18 +1692,45 @@ function isRenderConsistentWithExternalStores(finishedWork: Fiber): boolean {
   return true;
 }
 
+// 标记root已挂起 // +++
 function markRootSuspended(root, suspendedLanes) {
   // When suspending, we should always exclude lanes that were pinged or (more
   // rarely, since we try to avoid it) updated during the render phase.
   // TODO: Lol maybe there's a better way to factor this besides this
   // obnoxiously named function :)
-  suspendedLanes = removeLanes(suspendedLanes, workInProgressRootPingedLanes);
-  suspendedLanes = removeLanes(
+  // ++++++
+  suspendedLanes = removeLanes(suspendedLanes, workInProgressRootPingedLanes); // +++
+  suspendedLanes = removeLanes( // +++
     suspendedLanes,
     workInProgressRootInterleavedUpdatedLanes,
   );
+  // ++++++
   // $FlowFixMe[incompatible-call] found when upgrading Flow
-  markRootSuspended_dontCallThisOneDirectly(root, suspendedLanes);
+  markRootSuspended_dontCallThisOneDirectly(root, suspendedLanes); // ++++++
+  // 是packages/react-reconciler/src/ReactFiberLane.new.js下的markRootSuspended函数 // +++
+  /* 
+  
+// 标记root已挂起 // +++
+export function markRootSuspended(root: FiberRoot, suspendedLanes: Lanes) {
+
+  // +++
+  root.suspendedLanes |= suspendedLanes; // +++
+  root.pingedLanes &= ~suspendedLanes; // +++
+  // +++
+
+  // The suspended lanes are no longer CPU-bound. Clear their expiration times.
+  const expirationTimes = root.expirationTimes; // +++
+  let lanes = suspendedLanes;
+  while (lanes > 0) {
+    const index = pickArbitraryLaneIndex(lanes);
+    const lane = 1 << index;
+
+    expirationTimes[index] = NoTimestamp; // +++
+
+    lanes &= ~lane;
+  }
+}
+  */
 }
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2112,20 +2213,34 @@ export function markSkippedUpdateLanes(lane: Lane | Lanes): void {
   );
 }
 
+// ++++++
 export function renderDidSuspend(): void {
-  if (workInProgressRootExitStatus === RootInProgress) {
-    workInProgressRootExitStatus = RootSuspended;
+  if (workInProgressRootExitStatus === RootInProgress) { // +++
+    // +++
+    // +++
+    workInProgressRootExitStatus = RootSuspended; // 3 // ++++++
   }
 }
 
-export function renderDidSuspendDelayIfPossible(): void {
+// 这两个函数中的使用到的全局变量workInProgressRootExitStatus的更改会影响到performConcurrentWorkOnRoot -> finishConcurrentRender内部的逻辑（把exitStatus传给了此函数） // +++
+
+
+// 而performSyncWorkOnRoot函数中不会受此影响 - 它虽有对exitStatus的判断但是它是直接进行了commitRoot啦 ~ // +++
+
+// ++++++
+export function renderDidSuspendDelayIfPossible(): void { // +++
+
+  // +++
   if (
     workInProgressRootExitStatus === RootInProgress ||
     workInProgressRootExitStatus === RootSuspended ||
     workInProgressRootExitStatus === RootErrored
   ) {
-    workInProgressRootExitStatus = RootSuspendedWithDelay;
+    // +++
+    // +++
+    workInProgressRootExitStatus = RootSuspendedWithDelay; // 4 // +++
   }
+
 
   // Check if there are updates that we skipped tree that might have unblocked
   // this render.
@@ -3824,6 +3939,8 @@ export function captureCommitPhaseError(
   }
 }
 
+// +++
+// 附加ping监听器 // +++
 export function attachPingListener(
   root: FiberRoot,
   wakeable: Wakeable,
@@ -3843,10 +3960,10 @@ export function attachPingListener(
   // commits fallbacks synchronously, so there are no pings.
   let pingCache = root.pingCache;
   let threadIDs;
-  if (pingCache === null) {
-    pingCache = root.pingCache = new PossiblyWeakMap();
-    threadIDs = new Set();
-    pingCache.set(wakeable, threadIDs);
+  if (pingCache === null) { // +++
+    pingCache = root.pingCache = new PossiblyWeakMap(); // +++
+    threadIDs = new Set(); // +++
+    pingCache.set(wakeable, threadIDs); // +++
   } else {
     threadIDs = pingCache.get(wakeable);
     if (threadIDs === undefined) {
@@ -3854,36 +3971,62 @@ export function attachPingListener(
       pingCache.set(wakeable, threadIDs);
     }
   }
-  if (!threadIDs.has(lanes)) {
-    workInProgressRootDidAttachPingListener = true;
+
+  // +++
+  if (!threadIDs.has(lanes)) { // +++
+
+    // 标记这个全局遍历 // +++
+    workInProgressRootDidAttachPingListener = true; // +++
 
     // Memoize using the thread ID to prevent redundant listeners.
-    threadIDs.add(lanes);
-    const ping = pingSuspendedRoot.bind(null, root, wakeable, lanes);
+    threadIDs.add(lanes); // +++
+
+    // +++
+    const ping = pingSuspendedRoot.bind(null, root, wakeable, lanes); // +++
+    // ++++++
+
+
     if (enableUpdaterTracking) {
       if (isDevToolsPresent) {
         // If we have pending work still, restore the original updaters
         restorePendingUpdaters(root, lanes);
       }
     }
-    wakeable.then(ping, ping);
+
+    // 给promise注册回调 // +++
+    wakeable.then(ping, ping); // ++++++
   }
 }
 
+// ping已挂起的root // ++++++
 function pingSuspendedRoot(
   root: FiberRoot,
   wakeable: Wakeable,
   pingedLanes: Lanes,
 ) {
-  const pingCache = root.pingCache;
-  if (pingCache !== null) {
+  const pingCache = root.pingCache; // +++
+  if (pingCache !== null) { // +++
     // The wakeable resolved, so we no longer need to memoize, because it will
     // never be thrown again.
-    pingCache.delete(wakeable);
+    pingCache.delete(wakeable); // ++++++
   }
 
+  // ++++++
   const eventTime = requestEventTime();
+
+  // +++ 标记root已ping // +++
   markRootPinged(root, pingedLanes, eventTime);
+  /* 
+  // 标记root已ping // +++
+export function markRootPinged(
+  root: FiberRoot,
+  pingedLanes: Lanes,
+  eventTime: number,
+) {
+  /// +++
+  root.pingedLanes |= root.suspendedLanes & pingedLanes; // ++++++
+}
+  */
 
   warnIfSuspenseResolutionNotWrappedWithActDEV(root);
 
@@ -3917,7 +4060,10 @@ function pingSuspendedRoot(
     }
   }
 
-  ensureRootIsScheduled(root, eventTime);
+
+  // ++++++
+  ensureRootIsScheduled(root, eventTime); // +++
+  // +++
 }
 
 // ++++++

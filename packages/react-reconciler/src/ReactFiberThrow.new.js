@@ -316,8 +316,10 @@ function throwException(
   value: mixed,
   rootRenderLanes: Lanes,
 ): void {
+  // +++
   // The source fiber did not complete.
   sourceFiber.flags |= Incomplete; // 标记完成 - 那么所以在completeUnitOfWork中就会起到作用的 // +++
+  // +++
 
   if (enableUpdaterTracking) {
     if (isDevToolsPresent) {
@@ -351,11 +353,12 @@ function throwException(
     }
 
     // Schedule the nearest Suspense to re-render the timed out view.
-    const suspenseBoundary = getSuspenseHandler();
-    if (suspenseBoundary !== null) {
+    const suspenseBoundary = getSuspenseHandler(); // +++
+    if (suspenseBoundary !== null) { // ++++++
       switch (suspenseBoundary.tag) { // SuspenseComponent
-        case SuspenseComponent: {
+        case SuspenseComponent: { // ++++++
           suspenseBoundary.flags &= ~ForceClientRender;
+          // +++
           markSuspenseBoundaryShouldCapture(
             suspenseBoundary,
             returnFiber,
@@ -374,7 +377,8 @@ function throwException(
           //
           // When the wakeable resolves, we'll attempt to render the boundary
           // again ("retry").
-          const wakeables: Set<Wakeable> | null = (suspenseBoundary.updateQueue: any);
+          const wakeables: Set<Wakeable> | null = (suspenseBoundary.updateQueue: any); // +++
+          // ++++++
           if (wakeables === null) {
             suspenseBoundary.updateQueue = new Set([wakeable]); // +++ // promise加入进去 // +++
           } else {
@@ -412,11 +416,18 @@ function throwException(
           );
         }
       }
+
+      // ++++++
+      // 我们只在并发模式下附加ping侦听器。遗留的Suspense总是同步提交fallbacks，所以没有ping。 // +++
       // We only attach ping listeners in concurrent mode. Legacy Suspense always
       // commits fallbacks synchronously, so there are no pings.
-      if (suspenseBoundary.mode & ConcurrentMode) {
-        attachPingListener(root, wakeable, rootRenderLanes);
+      if (suspenseBoundary.mode & ConcurrentMode) { // +++
+        // ++++++
+        // 附加ping监听器 // +++
+        // ./ReactFiberWorkLoop.new.js下的函数 // ++++++
+        attachPingListener(root, wakeable, rootRenderLanes); // ++++++
       }
+      // ++++++
 
       // +++
       return; // +++

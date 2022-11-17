@@ -824,13 +824,15 @@ function updateOffscreenComponent(
     children: primaryChildren,
   };
   */
-  const nextProps: OffscreenProps = workInProgress.pendingProps;
+  const nextProps: OffscreenProps = workInProgress.pendingProps; // +++
 
   // 这个其实就是suspense组件的children // +++
-  const nextChildren = nextProps.children;
+  const nextChildren = nextProps.children; // +++
 
+  // +++
   const prevState: OffscreenState | null =
     current !== null ? current.memoizedState : null;
+  // +++
 
   markRef(current, workInProgress);
 
@@ -955,8 +957,11 @@ function updateOffscreenComponent(
       pushOffscreenSuspenseHandler(workInProgress);
     }
   } else {
+
+    // +++
+
     // Rendering a visible tree.
-    if (prevState !== null) {
+    if (prevState !== null) { // ++++++
       // We're going from hidden -> visible.
       let prevCachePool = null;
       if (enableCache) {
@@ -983,7 +988,7 @@ function updateOffscreenComponent(
       reuseSuspenseHandlerOnStack(workInProgress);
 
       // Since we're not hidden anymore, reset the state
-      workInProgress.memoizedState = null; // +++
+      workInProgress.memoizedState = null; // ++++++
     } else {
 
       // +++
@@ -1008,6 +1013,7 @@ function updateOffscreenComponent(
     }
   }
 
+  // +++
   // +++
   reconcileChildren(current, workInProgress, nextChildren, renderLanes); // +++
   /* 
@@ -2510,14 +2516,17 @@ function validateFunctionComponentInDev(workInProgress: Fiber, Component: any) {
   }
 }
 
-const SUSPENDED_MARKER: SuspenseState = {
+// +++
+const SUSPENDED_MARKER: SuspenseState = { // +++
   dehydrated: null,
   treeContext: null,
-  retryLane: NoLane,
-};
+  retryLane: NoLane, // 0
+}; // +++
+// +++
 
 // ++++++
-function mountSuspenseOffscreenState(renderLanes: Lanes): OffscreenState {
+function mountSuspenseOffscreenState(renderLanes: Lanes): OffscreenState { // +++
+  // +++ 一个对象 // +++
   return {
     baseLanes: renderLanes,
     cachePool: getSuspendedCache(),
@@ -2610,6 +2619,7 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
 
   // 是否已经挂起 // +++
   const didSuspend = (workInProgress.flags & DidCapture) !== NoFlags; // 是否有已经捕获的标记 // +++ // 刚开始是没有的 // 在之后的resumeSuspendedUnitOfWork中就有了 // 要注意 +++
+  // +++
 
   if (
     didSuspend ||
@@ -2618,6 +2628,7 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
     // Something in this boundary's subtree already suspended. Switch to
     // rendering the fallback children.
     showFallback = true; // 标记展示fallback // ++++++
+    // +++
 
     // 【去除】DidCapture标记 // +++
     workInProgress.flags &= ~DidCapture;
@@ -2701,13 +2712,14 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
       
       
       /// 挂载挂起离屏状态 // +++
-      primaryChildFragment.memoizedState = mountSuspenseOffscreenState(
+      primaryChildFragment.memoizedState = mountSuspenseOffscreenState( // +++
         renderLanes,
-      );
+      ); // +++
 
 
       // suspense的memoizedState
       workInProgress.memoizedState = SUSPENDED_MARKER; // +++ // 在completeWork中起作用的
+      // +++
 
 
       if (enableTransitionTracing) {
@@ -2814,6 +2826,7 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
       }
     }
 
+    // +++
     if (showFallback) { // +++
       pushFallbackTreeSuspenseHandler(workInProgress);
 
@@ -2846,14 +2859,16 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
       const primaryChildFragment: Fiber = (workInProgress.child: any);
 
 
+      // +++
       const prevOffscreenState: OffscreenState | null = (current.child: any)
-        .memoizedState;
+        .memoizedState; // +++
       
+      // +++
       primaryChildFragment.memoizedState =
-        prevOffscreenState === null
-          ? mountSuspenseOffscreenState(renderLanes)
-          : updateSuspenseOffscreenState(prevOffscreenState, renderLanes);
-      
+        prevOffscreenState === null // +++
+          ? mountSuspenseOffscreenState(renderLanes) // +++
+          : updateSuspenseOffscreenState(prevOffscreenState, renderLanes); // +++
+      // +++
       
       if (enableTransitionTracing) {
         const currentTransitions = getPendingTransitions();
@@ -2894,8 +2909,18 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
       );
 
       // +++
-      workInProgress.memoizedState = SUSPENDED_MARKER;
-
+      workInProgress.memoizedState = SUSPENDED_MARKER; // +++
+      // +++
+      /* 
+      // +++
+const SUSPENDED_MARKER: SuspenseState = { // +++
+  dehydrated: null,
+  treeContext: null,
+  retryLane: NoLane, // 0
+}; // +++
+// +++
+      */
+      
       // +++
       return fallbackChildFragment; // 返回关于fallback的Fragment
     } else {
@@ -2935,8 +2960,11 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
       // +++
 
 
-      // +++
-      workInProgress.memoizedState = null; // 置为null // +++
+      // ++++++
+      // 注意点：// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      workInProgress.memoizedState = null; // 置为null // +++ // 不要把左右缓冲树先后顺序搞反了（重点） // ++++++
+      // 另外注意提交fallback是一个场景 - 提交主要孩子又是一个场景（提交它时不需要应该fallback了之后也没有报错就正常render了，所以它的memoizedState就变为null，这就导致之后的current的memoizedState就是null啦 ~） // +++
+      // ++++++
 
 
       // 返回OffscreenComponent fiber
@@ -3146,10 +3174,11 @@ function updateSuspenseFallbackChildren(
   // OffscreenComponent fiber
   const currentPrimaryChildFragment: Fiber = (current.child: any);
 
-  // null
+  // null ?
   const currentFallbackChildFragment: Fiber | null =
     currentPrimaryChildFragment.sibling;
 
+  // +++
   const primaryChildProps: OffscreenProps = {
     mode: 'hidden', // +++
     children: primaryChildren, // +++
@@ -3191,6 +3220,8 @@ function updateSuspenseFallbackChildren(
     // to delete it.
     workInProgress.deletions = null;
   } else {
+
+    // +++
     primaryChildFragment = updateWorkInProgressOffscreenFiber(
       currentPrimaryChildFragment,
       primaryChildProps,
@@ -3203,6 +3234,7 @@ function updateSuspenseFallbackChildren(
   }
 
 
+  // +++
   let fallbackChildFragment;
   if (currentFallbackChildFragment !== null) {
     fallbackChildFragment = createWorkInProgress(
@@ -3228,6 +3260,7 @@ function updateSuspenseFallbackChildren(
   primaryChildFragment.return = workInProgress;
   primaryChildFragment.sibling = fallbackChildFragment;
   workInProgress.child = primaryChildFragment;
+  // +++
 
 
   // +++

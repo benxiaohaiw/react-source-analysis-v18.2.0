@@ -27,9 +27,12 @@ type HiddenContext = {
 
 // TODO: This isn't being used yet, but it's intended to replace the
 // InvisibleParentContext that is currently managed by SuspenseContext.
+// +++
 export const currentTreeHiddenStackCursor: StackCursor<HiddenContext | null> = createCursor(
   null,
-);
+); // ++++++
+
+
 export const prevRenderLanesStackCursor: StackCursor<Lanes> = createCursor(
   NoLanes,
 );
@@ -66,6 +69,9 @@ export function popHiddenContext(fiber: Fiber): void {
   pop(prevRenderLanesStackCursor, fiber);
 }
 
+
+// +++
 export function isCurrentTreeHidden(): boolean {
-  return currentTreeHiddenStackCursor.current !== null;
+  // +++
+  return currentTreeHiddenStackCursor.current !== null; // ++++++
 }

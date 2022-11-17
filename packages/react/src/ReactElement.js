@@ -145,18 +145,20 @@ function warnIfStringRefCannotBeAutoConverted(config) {
  * indicating filename, line number, and/or other information.
  * @internal
  */
-const ReactElement = function(type, key, ref, self, source, owner, props) { // ReactElement api
+const ReactElement = function(type, key, ref, self, source, owner, props) { // ReactElement api // +++
 
   // 准备element对象
   const element = {
+    // ++++++
     // This tag allows us to uniquely identify this as a React Element
     $$typeof: REACT_ELEMENT_TYPE, // 在这里不管是什么统统先默认为REACT_ELEMENT_TYPE // +++
+    // ++++++
 
     // Built-in properties that belong on the element
-    type: type, // type
+    type: type, // type // ++++++
     key: key, // key
     ref: ref, // ref
-    props: props, // props对象
+    props: props, // props对象 // ++++++
 
     // Record the component responsible for creating this element.
     _owner: owner,
@@ -362,7 +364,7 @@ export function jsxDEV(type, config, maybeKey, source, self) {
  * Create and return a new ReactElement of the given type.
  * See https://reactjs.org/docs/react-api.html#createelement
  */
-export function createElement(type, config, children) { // createElement api
+export function createElement(type, config, children) { // createElement api // +++
   let propName;
 
   // Reserved names are extracted
@@ -447,14 +449,14 @@ export function createElement(type, config, children) { // createElement api
   }
 
   // 执行ReactElement函数
-  return ReactElement(
-    type, // type
+  return ReactElement( // ++++++
+    type, // type // ++++++
     key, // key
     ref, // ref
     self,
     source,
     ReactCurrentOwner.current,
-    props, // props对象
+    props, // props对象 // ++++++
   );
 }
 

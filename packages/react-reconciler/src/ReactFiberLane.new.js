@@ -487,8 +487,10 @@ export function includesSyncLane(lanes: Lanes): boolean {
 export function includesNonIdleWork(lanes: Lanes): boolean {
   return (lanes & NonIdleLanes) !== NoLanes;
 }
+
+// 是否只包含重试车道集合 // +++
 export function includesOnlyRetries(lanes: Lanes): boolean {
-  return (lanes & RetryLanes) === lanes;
+  return (lanes & RetryLanes) === lanes; // +++
 }
 
 
@@ -499,8 +501,10 @@ export function includesOnlyNonUrgentLanes(lanes: Lanes): boolean {
 }
 
 
+// 是否只包含过渡车道集合 // +++
 export function includesOnlyTransitions(lanes: Lanes): boolean {
-  return (lanes & TransitionLanes) === lanes;
+  return (lanes & TransitionLanes) === lanes; // +++
+  // ++++++
 }
 
 // 是否包含阻塞车道 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -590,8 +594,9 @@ export function includesSomeLane(a: Lanes | Lane, b: Lanes | Lane): boolean {
   return (a & b) !== NoLanes; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
+// 子集 // +++
 export function isSubsetOfLanes(set: Lanes, subset: Lanes | Lane): boolean {
-  return (set & subset) === subset;
+  return (set & subset) === subset; // +++
 }
 
 // 合并车道 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -599,6 +604,7 @@ export function mergeLanes(a: Lanes | Lane, b: Lanes | Lane): Lanes {
   return a | b;
 }
 
+// 删除车道集合 // +++
 export function removeLanes(set: Lanes, subset: Lanes | Lane): Lanes {
   return set & ~subset;
 }
@@ -663,29 +669,37 @@ export function markRootUpdated(
   eventTimes[index] = eventTime;
 }
 
+
+// 标记root已挂起 // +++
 export function markRootSuspended(root: FiberRoot, suspendedLanes: Lanes) {
-  root.suspendedLanes |= suspendedLanes;
-  root.pingedLanes &= ~suspendedLanes;
+
+  // +++
+  root.suspendedLanes |= suspendedLanes; // +++
+  root.pingedLanes &= ~suspendedLanes; // +++
+  // +++
 
   // The suspended lanes are no longer CPU-bound. Clear their expiration times.
-  const expirationTimes = root.expirationTimes;
+  const expirationTimes = root.expirationTimes; // +++
   let lanes = suspendedLanes;
   while (lanes > 0) {
     const index = pickArbitraryLaneIndex(lanes);
     const lane = 1 << index;
 
-    expirationTimes[index] = NoTimestamp;
+    expirationTimes[index] = NoTimestamp; // +++
 
     lanes &= ~lane;
   }
 }
 
+
+// 标记root已ping // +++
 export function markRootPinged(
   root: FiberRoot,
   pingedLanes: Lanes,
   eventTime: number,
 ) {
-  root.pingedLanes |= root.suspendedLanes & pingedLanes;
+  /// +++
+  root.pingedLanes |= root.suspendedLanes & pingedLanes; // ++++++
 }
 
 export function markRootMutableRead(root: FiberRoot, updateLane: Lane) {
