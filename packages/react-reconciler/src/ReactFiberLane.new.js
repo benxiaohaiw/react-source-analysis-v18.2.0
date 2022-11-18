@@ -132,29 +132,40 @@ export function getLabelForLane(lane: Lane): string | void {
 
 export const NoTimestamp = -1;
 
-let nextTransitionLane: Lane = TransitionLane1;
-let nextRetryLane: Lane = RetryLane1;
+// +++
+let nextTransitionLane: Lane = TransitionLane1; // +++
+let nextRetryLane: Lane = RetryLane1; // +++
+// +++
 
+// +++
 // 获取最高优先级车道集合 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-function getHighestPriorityLanes(lanes: Lanes | Lane): Lanes {
+function getHighestPriorityLanes(lanes: Lanes | Lane): Lanes { // +++
   /* 
   export function getHighestPriorityLane(lanes: Lanes): Lane {
     return lanes & -lanes;
   }
   */
-  switch (getHighestPriorityLane(lanes)) {
-    case SyncLane:
+  // +++
+  switch (getHighestPriorityLane(lanes)) { // +++
+    case SyncLane: // +++
       return SyncLane; // 1 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     case InputContinuousHydrationLane:
-      return InputContinuousHydrationLane;
+      return InputContinuousHydrationLane; // +++
+    
     case InputContinuousLane:
-      return InputContinuousLane;
+      return InputContinuousLane; // +++
+    
     case DefaultHydrationLane:
-      return DefaultHydrationLane;
+      return DefaultHydrationLane; // +++
+    
     case DefaultLane:
       return DefaultLane; // 16 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     case TransitionHydrationLane:
-      return TransitionHydrationLane;
+      return TransitionHydrationLane; // +++
+    
+    // +++
     case TransitionLane1:
     case TransitionLane2:
     case TransitionLane3:
@@ -171,21 +182,27 @@ function getHighestPriorityLanes(lanes: Lanes | Lane): Lanes {
     case TransitionLane14:
     case TransitionLane15:
     case TransitionLane16:
-      return lanes & TransitionLanes;
+      return lanes & TransitionLanes; // +++
+    
+    // +++
     case RetryLane1:
     case RetryLane2:
     case RetryLane3:
     case RetryLane4:
     case RetryLane5:
-      return lanes & RetryLanes;
+      return lanes & RetryLanes; // +++
+    
+    // +++
     case SelectiveHydrationLane:
-      return SelectiveHydrationLane;
+      return SelectiveHydrationLane; // +++
     case IdleHydrationLane:
-      return IdleHydrationLane;
+      return IdleHydrationLane; // +++
     case IdleLane:
-      return IdleLane;
+      return IdleLane; // +++
     case OffscreenLane:
-      return OffscreenLane;
+      return OffscreenLane; // +++
+
+    // +++
     default:
       if (__DEV__) {
         console.error(
@@ -197,96 +214,168 @@ function getHighestPriorityLanes(lanes: Lanes | Lane): Lanes {
   }
 }
 
-// 获取下一车道 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-export function getNextLanes(root: FiberRoot, wipLanes: Lanes): Lanes {
+// 获取下一车道集合 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+export function getNextLanes(root: FiberRoot, wipLanes: Lanes): Lanes { // +++
+  // 如果没有未完成的工作，则提早救助。
   // Early bailout if there's no pending work left.
 
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // 在packages/react-reconciler/src/ReactFiberWorkLoop.new.js下的scheduleUpdateOnFiber -> markRootUpdated（root.pendingLanes |= lane）做的
-  const pendingLanes = root.pendingLanes; // root上的待处理车道 // +++++++++++++++++++++++++++++++++++++++++++=
+  const pendingLanes = root.pendingLanes; // root上的待处理车道集合 // +++++++++++++++++++++++++++++++++++++++++++=
+  // +++
+
+  // dispatchSetState -> scheduleUpdateOnFiber -> markRootUpdated
+
+  // pendingLanes上保存了所有将要执行的任务的lane，如果pendingLanes为空，那么则表示任务全部执行完成，也就不需要更新了，直接跳出。
+  // +++
   if (pendingLanes === NoLanes) {
-    return NoLanes;
+    return NoLanes; // +++
   }
 
+  // +++
   let nextLanes = NoLanes;
 
+  // +++
   // 在当前文件中的markRootUpdated函数中有 - 大概率都是0
-  const suspendedLanes = root.suspendedLanes;
-  const pingedLanes = root.pingedLanes;
+  const suspendedLanes = root.suspendedLanes; // 已挂起车道集合 - finishConcurrentRender -> markRootSuspended
+  const pingedLanes = root.pingedLanes; // 已ping车道集合 - workLoopConcurrent -> resumeSuspendedUnitOfWork -> throwException（packages/react-reconciler/src/ReactFiberThrow.new.js） -> attachPingListener -> pingSuspendedRoot -> markRootPinged
+  // +++
 
+  // +++
+  // 不要做任何空闲的工作，直到所有非空闲的工作都完成，即使工作是挂起的。
   // Do not work on any idle work until all the non-idle work has finished,
   // even if the work is suspended.
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   // const NonIdleLanes: Lanes = /*                          */ 0b0001111111111111111111111111111;
   const nonIdlePendingLanes = pendingLanes & NonIdleLanes; // 比如拿16或1 & 这个东东，那结果还是pendingLanes 16或1
+  // 待处理车道集合 & 非空闲车道集合 -> 非空闲待处理车道集合
+
+  // 是非空闲待处理车道集合
   if (nonIdlePendingLanes !== NoLanes) {
+    // 非空闲待处理车道集合 & 非已挂起车道集合 -> 非空闲非阻塞车道集合
     const nonIdleUnblockedLanes = nonIdlePendingLanes & ~suspendedLanes;
+
+    // 是非空闲非阻塞车道集合
     if (nonIdleUnblockedLanes !== NoLanes) { // 还是16或1
+
+      // 获取最高优先级车道集合
       nextLanes = getHighestPriorityLanes(nonIdleUnblockedLanes); // 16或1
+
+    // 是非空闲但不是非阻塞车道集合
     } else {
+      // 非空闲待处理车道集合 & 已ping车道集合 -> 非空闲已ping车道集合
       const nonIdlePingedLanes = nonIdlePendingLanes & pingedLanes;
+
+      // 是非空闲已ping车道集合
       if (nonIdlePingedLanes !== NoLanes) {
+        // 获取最高优先级车道集合
         nextLanes = getHighestPriorityLanes(nonIdlePingedLanes);
       }
     }
+    // +++
+
+    // suspendedLanes -> 意为阻塞车道集合
+
+  // 是空闲车道待处理集合
   } else {
+    // 唯一剩下的工作是空闲的。
     // The only remaining work is Idle.
+    // 空闲车道待处理集合 & 非已挂起车道集合 -> 空闲非阻塞车道集合
     const unblockedLanes = pendingLanes & ~suspendedLanes;
+
+    // 是空闲非阻塞车道集合
     if (unblockedLanes !== NoLanes) {
+      // 获取最高优先级车道集合
       nextLanes = getHighestPriorityLanes(unblockedLanes);
+
+    // 空闲但不是非阻塞车道集合
     } else {
+      // 是否有已ping车道集合
       if (pingedLanes !== NoLanes) {
+        // 获取最高优先级车道集合
         nextLanes = getHighestPriorityLanes(pingedLanes);
       }
     }
   }
 
+  // +++
   if (nextLanes === NoLanes) {
+    // 这应该只有在我们被挂起时才能访问
     // This should only be reachable if we're suspended
     // TODO: Consider warning in this path if a fallback timer is not scheduled.
     return NoLanes;
   }
 
+  // +++
   // 正常wipLanes传过来是为0的 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+  // 如果我们已经在渲染的中间，切换车道会中断渲染，我们会失去进度。只有在新车道优先级更高的情况下，我们才应该这么做。
   // If we're already in the middle of a render, switching lanes will interrupt
   // it and we'll lose our progress. We should only do this if the new lanes are
   // higher priority.
   if (
     wipLanes !== NoLanes &&
     wipLanes !== nextLanes &&
+    // 如果我们已经带有延时的挂起了，那么打断是可以的。不要等待root完成。
     // If we already suspended with a delay, then interrupting is fine. Don't
     // bother waiting until the root is complete.
-    (wipLanes & suspendedLanes) === NoLanes
+    (wipLanes & suspendedLanes) === NoLanes // wipLanes不是suspendedLanes
   ) {
+    // 获取最高优先级车道
     const nextLane = getHighestPriorityLane(nextLanes);
     const wipLane = getHighestPriorityLane(wipLanes);
     if (
+      // 测试下一个通道的优先级是否等于或低于wip通道。这是因为当你向左走的时候，比特的优先级就会降低。
       // Tests whether the next lane is equal or lower priority than the wip
       // one. This works because the bits decrease in priority as you go left.
       nextLane >= wipLane ||
+      // 默认优先级更新不应该中断transition更新。默认更新和transition更新之间的唯一区别是，默认更新不支持refresh transition。
       // Default priority updates should not interrupt transition updates. The
       // only difference between default updates and transition updates is that
       // default updates do not support refresh transitions.
       (nextLane === DefaultLane && (wipLane & TransitionLanes) !== NoLanes)
     ) {
+      // 继续处理现有的正在进行的树。不要打扰。
       // Keep working on the existing in-progress tree. Do not interrupt.
       return wipLanes;
     }
   }
 
+  // +++
   if (
+    // 通过默认允许并发
+    // shared/ReactFeatureFlags
     allowConcurrentByDefault &&
+    // root.current.mode是ConcurrentUpdatesByDefaultMode模式
     (root.current.mode & ConcurrentUpdatesByDefaultMode) !== NoMode
   ) {
+    // 什么都不做，使用分配给他们的车道。
     // Do nothing, use the lanes as they were assigned.
   } else if ((nextLanes & InputContinuousLane /** 输入连续车道 // ++++++++++++++++++++++= */) !== NoLanes) { // 按照上面的16或1来讲结果这里为false
+    // nextLanes是InputContinuousLane
+
+    // +++
+    // 当更新默认为同步时，【我们将连续的优先级更新和默认更新纠缠在一起，因此它们在同一批中渲染】。 // +++它们使用单独通道的唯一原因是连续更新应该中断transitions，但默认更新不应该。
+    // +++
     // When updates are sync by default, we entangle continuous priority updates
     // and default updates, so they render in the same batch. The only reason
     // they use separate lanes is because continuous updates should interrupt
     // transitions, but default updates should not.
-    nextLanes |= pendingLanes & DefaultLane;
+    nextLanes |= pendingLanes & DefaultLane; // 将InputContinuousLane和DefaultLane纠缠在一起，因此它们在同一批中渲染。
   }
+
+  // +++
+  // 【检查纠缠的车道并将它们添加到批次中】。 // +++
+  // 
+  // 当不允许在不包括另一个车道的批处理中渲染时，一个车道被称为与另一个车道纠缠。通常情况下，当多个更新具有相同的源，并且我们只想响应来自该源的最新事件时，我们会这样做。
+  // 
+  // 注意，我们应用纠缠 *after* 检查上述部分工作。
+  // 这意味着，如果一个车道在交错的事件中被纠缠，而它已经在渲染，我们不会中断它。
+  // 这是有意为之的，因为纠缠通常是“尽最大努力”：我们会尽最大努力在同一批中渲染通道，但为了这样做而放弃部分已完成的工作是不值得的。
+  // 待办：重新考虑一下。相反的观点是，部分工作代表中间状态，我们不想显示给用户。通过花额外的时间完成它，我们增加了显示最终状态所需的时间，这是他们真正等待的。
+  // 
+  // 对于那些纠缠在语义上很重要的例外情况，比如useMutableSource，我们应该确保在应用纠缠时没有部分工作。
+  // +++
 
   // Check for entangled lanes and add them to the batch.
   //
@@ -310,20 +399,53 @@ export function getNextLanes(root: FiberRoot, wipLanes: Lanes): Lanes {
   // For those exceptions where entanglement is semantically important, like
   // useMutableSource, we should ensure that there is no partial work at the
   // time we apply the entanglement.
-  const entangledLanes = root.entangledLanes;
-  if (entangledLanes !== NoLanes) {
-    const entanglements = root.entanglements;
-    let lanes = nextLanes & entangledLanes;
+  const entangledLanes = root.entangledLanes; // +++ - dispatchSetState -> entangleTransitionUpdate -> markRootEntangled
+  if (entangledLanes !== NoLanes) { // +++
+    const entanglements = root.entanglements; // ++
+    let lanes = nextLanes & entangledLanes; // +++
+
+    /* 
+    entangledLanes: 纠缠车道集合
+    entanglements: 纠缠元素数组
+    */
+
+    // +++
     while (lanes > 0) {
-      const index = pickArbitraryLaneIndex(lanes);
+      // +++
+      /* 
+        // 获取当前lanes中最左边1的位置
+        // 例如：
+        // lanes = 28 = 0b0000000000000000000000000011100
+        // 以32位正常看的话，最左边的1应该是在5的位置上
+        // 但是lanes设置了总长度为31，所以我们可以也减1，看作在4的位置上
+        // 如果这样不好理解的话，可以看pickArbitraryLaneIndex中的源码：
+        // 31 - clz32(lanes), clz32是Math中的一个API，获取的是最左边1前面的所有0的个数
+
+        // 27 = Math.clz32(28);
+
+        // +++
+        链接：https://juejin.cn/post/7008802041602506765
+      */
+      const index = pickArbitraryLaneIndex(lanes); // pickArbitraryLaneIndex: 挑选随意的车道下标 // +++
+
+      // +++
+      /* 
+        // 上面获取到最左边1的位置后，还需要获取到这个位置上的值
+        // index = 4
+        // 16 = 10000 = 1 << 4
+      */
       const lane = 1 << index;
 
-      nextLanes |= entanglements[index];
+      // +++
+      nextLanes |= entanglements[index]; // +++
+      // 纠缠在一起
 
+      // +++
       lanes &= ~lane;
     }
   }
 
+  // +++
   return nextLanes; // 正常情况下还是返回16或1的 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
@@ -567,11 +689,15 @@ export function claimNextRetryLane(): Lane {
   return lane; // RetryLane1
 }
 
+// +++
 // 获取最高优先级车道
 export function getHighestPriorityLane(lanes: Lanes): Lane {
+  // +++
   return lanes & -lanes; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
+// +++
 
+// +++
 // 挑选随意的车道
 export function pickArbitraryLane(lanes: Lanes): Lane {
   // This wrapper function gets inlined. Only exists so to communicate that it
@@ -581,8 +707,11 @@ export function pickArbitraryLane(lanes: Lanes): Lane {
   return getHighestPriorityLane(lanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
+// +++
+// 挑选随意的车道下标 // +++
 function pickArbitraryLaneIndex(lanes: Lanes) {
-  return 31 - clz32(lanes);
+  // +++
+  return 31 - clz32(lanes); // +++
 }
 
 function laneToIndex(lane: Lane) {
@@ -635,6 +764,7 @@ export function createLaneMap<T>(initial: T): LaneMap<T> {
   return laneMap;
 }
 
+// +++
 // 标记root有一个【待处理的更新】 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function markRootUpdated(
   root: FiberRoot,
@@ -643,6 +773,7 @@ export function markRootUpdated(
 ) {
 
   // +++
+  /// ++++++
   root.pendingLanes |= updateLane; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // If there are any suspended transitions, it's possible this new update
@@ -670,6 +801,7 @@ export function markRootUpdated(
 }
 
 
+// +++
 // 标记root已挂起 // +++
 export function markRootSuspended(root: FiberRoot, suspendedLanes: Lanes) {
 
@@ -678,6 +810,7 @@ export function markRootSuspended(root: FiberRoot, suspendedLanes: Lanes) {
   root.pingedLanes &= ~suspendedLanes; // +++
   // +++
 
+  // +++
   // The suspended lanes are no longer CPU-bound. Clear their expiration times.
   const expirationTimes = root.expirationTimes; // +++
   let lanes = suspendedLanes;
@@ -692,6 +825,7 @@ export function markRootSuspended(root: FiberRoot, suspendedLanes: Lanes) {
 }
 
 
+// +++
 // 标记root已ping // +++
 export function markRootPinged(
   root: FiberRoot,
@@ -706,13 +840,18 @@ export function markRootMutableRead(root: FiberRoot, updateLane: Lane) {
   root.mutableReadLanes |= updateLane & root.pendingLanes;
 }
 
+// +++
 // 标记root已完成 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 export function markRootFinished(root: FiberRoot, remainingLanes: Lanes) {
   const noLongerPendingLanes = root.pendingLanes & ~remainingLanes;
 
+  // +++
   // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   root.pendingLanes = remainingLanes; // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  // +++
 
+  // +++
+  // 让我们再试一次
   // Let's try everything again
   root.suspendedLanes = NoLanes;
   root.pingedLanes = NoLanes;
@@ -720,15 +859,21 @@ export function markRootFinished(root: FiberRoot, remainingLanes: Lanes) {
   root.expiredLanes &= remainingLanes;
   root.mutableReadLanes &= remainingLanes;
 
-  root.entangledLanes &= remainingLanes;
+  // +++
+  root.entangledLanes &= remainingLanes; // +++
+  // +++
 
   root.errorRecoveryDisabledLanes &= remainingLanes;
 
-  const entanglements = root.entanglements;
+  // +++
+  const entanglements = root.entanglements; // +++
   const eventTimes = root.eventTimes;
   const expirationTimes = root.expirationTimes;
   const hiddenUpdates = root.hiddenUpdates;
+  // +++
 
+  // +++
+  // 清除不再有待处理工作的通道 // +++
   // Clear the lanes that no longer have pending work
   let lanes = noLongerPendingLanes;
   while (lanes > 0) {
@@ -756,10 +901,13 @@ export function markRootFinished(root: FiberRoot, remainingLanes: Lanes) {
 
     lanes &= ~lane;
   }
+
+  // +++
 }
 
+// +++
 // 标记root已纠缠 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-export function markRootEntangled(root: FiberRoot, entangledLanes: Lanes) {
+export function markRootEntangled(root: FiberRoot, entangledLanes: Lanes) { // +++
   // In addition to entangling each of the given lanes with each other, we also
   // have to consider _transitive_ entanglements. For each lane that is already
   // entangled with *any* of the given lanes, that lane is now transitively
@@ -772,18 +920,33 @@ export function markRootEntangled(root: FiberRoot, entangledLanes: Lanes) {
   // function and look at the tests that fail in ReactTransition-test.js. Try
   // commenting out one of the conditions below.
 
+  // +++
   const rootEntangledLanes = (root.entangledLanes |= entangledLanes); // ++++++++++++++++++++++++++++++++++++++++++++++++++
-  const entanglements = root.entanglements;
+  // +++
+
+  // +++
+  const entanglements = root.entanglements; // +++
+  // +++
   let lanes = rootEntangledLanes;
+  // +++
+
+  // +++
   while (lanes) {
-    const index = pickArbitraryLaneIndex(lanes);
-    const lane = 1 << index;
+    const index = pickArbitraryLaneIndex(lanes); // +++
+    const lane = 1 << index; // +++
+
+    // +++
     if (
+      // 这是新纠缠的车道之一吗？
       // Is this one of the newly entangled lanes?
       (lane & entangledLanes) |
+      // 这条车道是否与新纠缠的车道传递纠缠？
       // Is this lane transitively entangled with the newly entangled lanes?
       (entanglements[index] & entangledLanes)
     ) {
+
+      // 将在getNextLanes函数中起作用 // +++
+      // +++ 存入 // +++
       entanglements[index] |= entangledLanes;
     }
     lanes &= ~lane;

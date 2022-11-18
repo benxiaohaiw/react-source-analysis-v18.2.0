@@ -11,6 +11,74 @@ import type {StartTransitionOptions} from 'shared/ReactTypes';
 import ReactCurrentBatchConfig from './ReactCurrentBatchConfig';
 import {enableTransitionTracing} from 'shared/ReactFeatureFlags';
 
+/* 
+当前的这个startTransition api以及packages/react-reconciler/src/ReactFiberHooks.new.js下的useTransition hook返回的startTransition函数，它们的逻辑都是相同的
+那么它会导致packages/react-reconciler/src/ReactFiberWorkLoop.new.js下的requestUpdateLane函数返回【过渡车道n】
+所属过渡车道集合的车道将会直接影响【渲染阶段】采用【并发渲染】，也就是【开启时间切片】
+
+dispatchSetState
+  requestUpdateLane -> 正是执行startTransition函数的原因导致该函数会返回【过渡车道n（n为1-16）】，也就是TransitionLane1，同时nextTransitionLane左移变为TransitionLane2
+  scheduleUpdateOnFiber -> markRootUpdated（+++ - pendingLanes） -> ensureRootIsScheduled -> getNextLanes -> getHighestPriorityLane -> 【确认是调度微任务还是宏任务】 // ++++++
+    scheduleMicrotask -> flushSyncCallbacks -> performSyncWorkOnRoot
+    scheduleCallback -> performConcurrentWorkOnRoot
+      performSyncWorkOnRoot -> getNextLanes -> renderRootSync -> commitRoot
+      performConcurrentWorkOnRoot -> getNextLanes -> shouldTimeSlice ? renderRootConcurrent : renderRootSync -> finishConcurrentRender
+          let lanes = getNextLanes(
+            root,
+            root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes,
+          );
+  entangleTransitionUpdate // +++
+
+此外在dispatchSetState中的entangleTransitionUpdate函数会去检查【当前请求到的更新lane】是否属于过渡车道
+若属于则执行markRootEntangled函数，若不属于则什么事情都不做
+
+root.entangledLanes总共出现的位置如下：
+
+1. getNextLanes // +++
+  packages/react-reconciler/src/ReactFiberLane.new.js
+
+2. markRootFinished(root, remainingLanes)
+  packages/react-reconciler/src/ReactFiberLane.new.js
+  root.entangledLanes &= remainingLanes;
+
+3. markRootEntangled
+  packages/react-reconciler/src/ReactFiberLane.new.js
+  主要是|或运算root.entangledLanes变量和root.entanglements数组
+
+- markRootEntangled函数中进行的root.entangledLanes使用的地方是在getNextLanes、markRootFinished、markRootEntangled
+
+
+// +++
+总结：
+startTransition api影响的地方主要还是getNextLanes函数获取的车道集合
+
+纠缠：|或运算
+
+entangleTransitionUpdate: 纠缠过渡更新
+  markRootEntangled
+以及
+getNextLanes
+// ++++++
+实际上就是为了在getNextLanes中可以【检查纠缠的车道并将它们添加到批次中】。纠缠在一起之后，因此它们在同一批中渲染（这是重点）。 // +++
+// 提取信息来自packages/react-reconciler/src/ReactFiberLane.new.js中的getNextLanes方法中的注释
+// ++++++
+// +++
+
+// +++
+随后可以开启时间切片 - 并发渲染 // +++
+
+
+举例：
+在react中的点击事件中
+  setXxx
+    startTransition
+      setYyy
+
+---
+
+
+*/
+
 // startTransition api
 export function startTransition(
   scope: () => void,
