@@ -147,6 +147,8 @@ function warnIfStringRefCannotBeAutoConverted(config) {
  */
 const ReactElement = function(type, key, ref, self, source, owner, props) { // ReactElement api // +++
 
+  // +++
+
   // 准备element对象
   const element = {
     // ++++++
@@ -364,7 +366,7 @@ export function jsxDEV(type, config, maybeKey, source, self) {
  * Create and return a new ReactElement of the given type.
  * See https://reactjs.org/docs/react-api.html#createelement
  */
-export function createElement(type, config, children) { // createElement api // +++
+export function createElement(type, config, children) { // createElement api // +++ // +++
   let propName;
 
   // Reserved names are extracted

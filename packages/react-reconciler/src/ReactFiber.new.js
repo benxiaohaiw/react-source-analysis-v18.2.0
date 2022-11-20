@@ -219,6 +219,7 @@ function FiberNode(
 //    is faster.
 // 5) It should be easy to port this to a C struct and keep a C implementation
 //    compatible.
+// +++
 const createFiber = function( // 创建fiber节点
   tag: WorkTag,
   pendingProps: mixed,
@@ -261,6 +262,7 @@ export function resolveLazyComponentTag(Component: Function): WorkTag {
   return IndeterminateComponent;
 }
 
+// +++
 // 这用于创建一个备用的fiber以进行工作 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // This is used to create an alternate fiber to do work on.
 export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber { // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -517,6 +519,7 @@ export function createHostRootFiber(
   return createFiber(HostRoot, null, null, mode); // 3 null null 1 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
 
+// +++
 // 从react元素的type和props上创建fiber // +++
 export function createFiberFromTypeAndProps( // +++
   type: any, // React$ElementType
@@ -694,6 +697,7 @@ export function createFiberFromTypeAndProps( // +++
   return fiber; // 返回fiber
 }
 
+// +++
 // 从react元素创建fiber // +++
 export function createFiberFromElement( // +++
   element: ReactElement,
@@ -708,6 +712,7 @@ export function createFiberFromElement( // +++
   const key = element.key; // 元素的key
   const pendingProps = element.props; // 元素的props对象
 
+  // +++
   // +++
   const fiber = createFiberFromTypeAndProps( // 从react的type和props上创建fiber // +++
     type, // 元素的type
@@ -726,6 +731,7 @@ export function createFiberFromElement( // +++
   return fiber;
 }
 
+// +++
 /// 从fragment中创建fiber
 export function createFiberFromFragment(
   elements: ReactFragment,
@@ -782,6 +788,7 @@ function createFiberFromProfiler(
   return fiber;
 }
 
+// +++
 // 从suspense中创建fiber // +++
 export function createFiberFromSuspense(
   pendingProps: any,
@@ -812,6 +819,7 @@ export function createFiberFromSuspenseList(
   return fiber;
 }
 
+// +++
 // 从离屏创建fiber // +++
 export function createFiberFromOffscreen(
   pendingProps: OffscreenProps,
@@ -901,6 +909,7 @@ export function createFiberFromTracingMarker(
   return fiber;
 }
 
+// 从文本创建fiber
 export function createFiberFromText(
   content: string,
   mode: TypeOfMode,
@@ -926,6 +935,7 @@ export function createFiberFromDehydratedFragment(
 }
 
 
+// +++
 // 从portal中创建对应的fiber // +++
 export function createFiberFromPortal(
   portal: ReactPortal,
